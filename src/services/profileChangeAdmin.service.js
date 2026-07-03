@@ -2,7 +2,10 @@ const tutorRepository = require("../repositories/tutor.repository");
 const profileChangeRequestRepository = require("../repositories/profileChangeRequest.repository");
 const notificationService = require("./notification.service");
 const { NOTIFICATION_TYPES } = require("../constants/notification");
-const { PROFILE_CHANGE_STATUS } = require("../constants/profileChangeRequest");
+const {
+  PROFILE_CHANGE_STATUS,
+  PROFILE_CHANGE_EDITABLE_FIELDS,
+} = require("../constants/profileChangeRequest");
 const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
@@ -43,8 +46,15 @@ const approveProfileChange = async (requestId, adminUserId) => {
   }
 
   const tutorId = request.tutorId?._id ?? request.tutorId;
-  // Áp các thay đổi (đã whitelist khi tạo) vào hồ sơ gia sư
-  const updatedTutor = await tutorRepository.update(tutorId, request.changes);
+  // Chỉ áp các field còn nằm trong whitelist. Yêu cầu cũ có thể chứa field không
+  // còn cho phép đổi (vd schoolName): loại bỏ khi duyệt để không lỡ áp vào hồ sơ.
+  // Không xóa dữ liệu gốc trong `request.changes` — chỉ không áp field đó.
+  const appliedChanges = {};
+  for (const field of PROFILE_CHANGE_EDITABLE_FIELDS) {
+    if (request.changes[field] !== undefined) appliedChanges[field] = request.changes[field];
+  }
+  // Áp các thay đổi đã whitelist vào hồ sơ gia sư
+  const updatedTutor = await tutorRepository.update(tutorId, appliedChanges);
 
   const updated = await profileChangeRequestRepository.update(requestId, {
     status: PROFILE_CHANGE_STATUS.APPROVED,

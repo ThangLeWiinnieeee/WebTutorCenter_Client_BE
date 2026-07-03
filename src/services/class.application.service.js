@@ -3,7 +3,7 @@ const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 const { TUTOR_STATUS } = require("../constants/tutor");
 const ROLES = require("../constants/role");
-const { NOTIFICATION_TYPES } = require("../constants/notification");
+const { NOTIFICATION_TYPES, NOTIFICATION_AUDIENCE } = require("../constants/notification");
 const { CLASS_APPLICATION_STATUS, CLASS_APPLICATION_ORIGIN } = require("../constants/classApplication");
 const { CLASS_STATUS } = require("../constants/class");
 const classRepository = require("../repositories/class.repository");
@@ -203,7 +203,12 @@ const notifyAdmins = async (type, message) => {
   const admins = await userRepository.findAllByRole(ROLES.ADMIN);
   await Promise.all(
     admins.map((admin) =>
-      notificationService.createNotification({ userId: admin._id, type, message })
+      notificationService.createNotification({
+        userId: admin._id,
+        type,
+        message,
+        audience: NOTIFICATION_AUDIENCE.ADMIN,
+      })
     )
   );
 };

@@ -34,4 +34,12 @@ const NOTIFICATION_TYPES = {
   CLASS_INVITE_DECLINED: "CLASS_INVITE_DECLINED",
 };
 
-module.exports = { NOTIFICATION_TYPES };
+// Đối tượng nhận thông báo — quyết định thông báo hiển thị ở chuông nào.
+// "client": nghiệp vụ phía người dùng (gia sư/học viên/người đăng) — chuông ở Header.
+// "admin": việc cần quản trị viên xử lý (duyệt hồ sơ, duyệt nhận lớp, ...) — chuông riêng khu admin.
+const NOTIFICATION_AUDIENCE = {
+  CLIENT: "client",
+  ADMIN: "admin",
+};
+
+module.exports = { NOTIFICATION_TYPES, NOTIFICATION_AUDIENCE };
