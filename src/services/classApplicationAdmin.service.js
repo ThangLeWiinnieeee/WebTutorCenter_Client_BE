@@ -1,5 +1,6 @@
 const classRepository = require("../repositories/class.repository");
 const classApplicationRepository = require("../repositories/class.application.repository");
+const tutorRepository = require("../repositories/tutor.repository");
 const notificationService = require("./notification.service");
 const { NOTIFICATION_TYPES } = require("../constants/notification");
 const { CLASS_APPLICATION_STATUS } = require("../constants/classApplication");
