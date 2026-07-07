@@ -1,4 +1,5 @@
 const TutorMapper = require("./tutor.mapper");
+const locationCache = require("../utils/locationCache");
 
 class ProfileChangeRequestMapper {
   static async toDTO(doc) {
@@ -36,11 +37,13 @@ class ProfileChangeRequestMapper {
   // Resolve mã tỉnh/quận trong phần thay đổi sang tên để admin dễ đọc.
   static async _resolveChanges(changes) {
     const out = { ...changes };
+    // _resolve* đọc tên tỉnh/huyện từ locationCache (RAM) — phải nạp trước khi đọc.
+    await locationCache.ensureLoaded();
     if (changes.teachingAreas) {
-      out.teachingAreas = await TutorMapper._resolveTeachingAreas(changes.teachingAreas);
+      out.teachingAreas = TutorMapper._resolveTeachingAreas(changes.teachingAreas);
     }
     if (changes.currentArea) {
-      out.currentArea = await TutorMapper._resolveCurrentArea(changes.currentArea);
+      out.currentArea = TutorMapper._resolveCurrentArea(changes.currentArea);
     }
     return out;
   }

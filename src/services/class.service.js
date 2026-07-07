@@ -1,6 +1,7 @@
 const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const locationRepository = require("../repositories/location.repository");
+const locationCache = require("../utils/locationCache");
 const classRepository = require("../repositories/class.repository");
 const tutorRepository = require("../repositories/tutor.repository");
 const userRepository = require("../repositories/user.repository");
@@ -211,6 +212,8 @@ const maskClassItem = async (classItem, user) => {
   const items = isArray ? classItem : [classItem];
   const maskedList = [];
 
+  await locationCache.ensureLoaded(); // nạp 1 lần cho cả list; fallback bên dưới đọc từ RAM
+
   for (const item of items) {
     const dto = ClassMapper.toDTO(item);
     if (!dto) {
@@ -218,14 +221,10 @@ const maskClassItem = async (classItem, user) => {
       continue;
     }
 
-    // Dynamic fallback for provinceName and districtName for older documents
+    // Fallback tên tỉnh/huyện cho document cũ (chưa denormalize) — đọc từ cache, không query.
     if (!dto.provinceName || !dto.districtName) {
-      const [prov, dist] = await Promise.all([
-        locationRepository.findProvinceByCode(dto.provinceCode),
-        locationRepository.findDistrictByCode(dto.districtCode),
-      ]);
-      dto.provinceName = prov?.name || "";
-      dto.districtName = dist?.name || "";
+      dto.provinceName = locationCache.getProvince(dto.provinceCode)?.name || "";
+      dto.districtName = locationCache.getDistrict(dto.districtCode)?.name || "";
     }
 
     const canView = await checkCanViewSensitiveDetails(item, user);

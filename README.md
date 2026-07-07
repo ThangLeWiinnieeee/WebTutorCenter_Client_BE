@@ -47,7 +47,7 @@ Base API:
 http://localhost:<PORT>/api
 ```
 
-`server.js` tạo một HTTP server dùng chung cho Express và Socket.IO (`initSocket`). Khi server khởi động, `startClassLifecycleScheduler()` chạy job nền định kỳ (mỗi 15 phút) để đánh dấu `expired` cho các bài đăng đã tới giờ học mà chưa có gia sư nhận.
+`server.js` tạo một HTTP server dùng chung cho Express và Socket.IO (`initSocket`). Khi server khởi động: preload cache tỉnh/huyện vào RAM (`locationCache.ensureLoaded()`) để request danh sách đầu tiên không phải chờ, rồi `startClassLifecycleScheduler()` chạy job nền định kỳ (mỗi 15 phút) để đánh dấu `expired` cho các bài đăng đã tới giờ học mà chưa có gia sư nhận.
 
 ## Seed Dữ Liệu
 
@@ -85,8 +85,10 @@ src/
 ├── constants/          # status, message, role, otpType, accountType, occupationStatus, tutor
 ├── middlewares/        # auth (+ .optional), role, validate, error
 └── utils/              # token, response, hash, email, otp, upload, pagination,
-                        #   code, classLifecycle (scheduler), AppError
+                        #   code, classLifecycle (scheduler), locationCache, search, AppError
 ```
+
+**Cache tỉnh/huyện (`utils/locationCache.js`)**: dữ liệu tỉnh/huyện là tĩnh nên được nạp toàn bộ vào RAM (Map theo `code`) thay vì query MongoDB theo từng mã. Loại bỏ N+1 khi resolve tên khu vực ở `TutorMapper`, `profileChangeRequest.mapper` và `class.service` (danh sách gia sư/lớp: từ ~N query location/trang → 0). Tự làm mới bằng TTL (10 phút) — sau khi cập nhật DB, cache tự nạp lại data mới mà không cần restart; cần tức thì thì gọi `invalidate()`. Preload sẵn lúc server khởi động.
 
 Submodule trong `classes`: `class.application.*` (ứng tuyển / chọn / hủy nhận lớp + lời mời dạy trực tiếp) và `class.pricing.*` (model + repository tính học phí, có cache). Module `otp` là nội bộ của auth (`otp.model`, `otp.repository`, `utils/otp`). `pendingRegistration` lưu đăng ký chờ xác thực OTP trước khi tạo user.
 
