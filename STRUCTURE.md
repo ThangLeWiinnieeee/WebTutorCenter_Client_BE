@@ -6,7 +6,7 @@
 
 ```text
 WebTutorCenter_BE/
-├── server.js                         # Entry: dotenv, connectDB, app.listen
+├── server.js                         # Entry: dotenv, connectDB, preload locationCache, app.listen
 ├── app.js                            # Express app: CORS, morgan, JSON parser, cookieParser, /api, error handler
 ├── scripts/
 │   ├── seedLocations.js              # Fetch provinces.open-api.vn và upsert Province/District vào MongoDB
@@ -44,7 +44,7 @@ WebTutorCenter_BE/
 │   │   └── class.service.js
 │   ├── mappers/
 │   │   ├── user.mapper.js            # UserMapper.toDTO — chuyển User document → DTO
-│   │   ├── tutor.mapper.js           # TutorMapper.toDTO/toDTOList — resolve area codes, cache per-request
+│   │   ├── tutor.mapper.js           # TutorMapper.toDTO/toDTOList — resolve tên tỉnh/huyện từ locationCache (RAM, không query)
 │   │   ├── notification.mapper.js    # NotificationMapper.toDTO/toDTOList
 │   │   └── class.mapper.js           # ClassMapper.toDTO/toDTOList
 │   ├── repositories/
@@ -82,6 +82,7 @@ WebTutorCenter_BE/
 │       ├── AppError.js               # Lỗi nghiệp vụ/user-facing
 │       ├── email.js                  # Gửi mail OTP
 │       ├── hash.js                   # bcrypt hash/compare
+│       ├── locationCache.js          # Cache tỉnh/huyện trong RAM (TTL 10'), bỏ N+1 resolve tên khu vực
 │       ├── otp.js                    # Tạo OTP, expiry, cooldown
 │       ├── response.js              # successResponse/errorResponse
 │       ├── token.js                  # JWT generate/verify
@@ -147,7 +148,7 @@ Quản lý hồ sơ gia sư:
 
 ### `locations`
 
-Lưu và đọc dữ liệu tỉnh/thành, quận/huyện từ MongoDB. Dữ liệu được seed từ `provinces.open-api.vn` bằng `scripts/seedLocations.js`.
+Lưu và đọc dữ liệu tỉnh/thành, quận/huyện từ MongoDB. Dữ liệu được seed từ `provinces.open-api.vn` bằng `scripts/seedLocations.js`. Vì là dữ liệu tĩnh, tên tỉnh/huyện được resolve qua `utils/locationCache.js` (nạp toàn bộ vào RAM, TTL 10 phút) thay vì query DB theo từng mã — tránh N+1 ở danh sách gia sư/lớp. Cập nhật DB xong cache tự nạp lại trong ≤ TTL (hoặc gọi `invalidate()`).
 
 ### `notifications`
 
