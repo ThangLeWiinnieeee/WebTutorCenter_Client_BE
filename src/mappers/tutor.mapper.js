@@ -1,17 +1,18 @@
-const locationRepository = require("../repositories/location.repository");
+const locationCache = require("../utils/locationCache");
 
 class TutorMapper {
   // options.includeDocuments: chỉ thêm ảnh giấy tờ (CCCD/bằng cấp) cho người được phép xem
   // (chủ hồ sơ + admin). Mặc định KHÔNG trả để không lộ ở endpoint công khai.
+  // Tham số `cache` giữ lại cho tương thích chữ ký cũ nhưng không còn dùng — tên tỉnh/huyện
+  // lấy từ locationCache (RAM), không query DB nữa (xem utils/locationCache.js).
   static async toDTO(tutor, user, cache = null, options = {}) {
     if (!tutor) {
       throw new Error("TutorMapper.toDTO: tutor is required");
     }
 
-    const [teachingAreas, currentArea] = await Promise.all([
-      TutorMapper._resolveTeachingAreas(tutor.teachingAreas, cache),
-      TutorMapper._resolveCurrentArea(tutor.currentArea, cache),
-    ]);
+    await locationCache.ensureLoaded();
+    const teachingAreas = TutorMapper._resolveTeachingAreas(tutor.teachingAreas);
+    const currentArea = TutorMapper._resolveCurrentArea(tutor.currentArea);
 
     const documents = options.includeDocuments
       ? {
@@ -59,45 +60,22 @@ class TutorMapper {
 
   static async toDTOList(tutors, options = {}) {
     if (!Array.isArray(tutors)) return [];
-    const cache = { provinces: new Map(), districts: new Map() };
-    return Promise.all(tutors.map((tutor) => TutorMapper.toDTO(tutor, null, cache, options)));
+    await locationCache.ensureLoaded(); // nạp 1 lần cho cả list; toDTO đọc từ RAM
+    return Promise.all(tutors.map((tutor) => TutorMapper.toDTO(tutor, null, null, options)));
   }
 
-  static async _getProvince(code, cache) {
-    if (code == null) return null;
-    if (cache) {
-      if (cache.provinces.has(code)) return cache.provinces.get(code);
-      const province = await locationRepository.findProvinceByCode(code);
-      cache.provinces.set(code, province);
-      return province;
-    }
-    return locationRepository.findProvinceByCode(code);
-  }
-
-  static async _getDistrict(code, cache) {
-    if (code == null) return null;
-    if (cache) {
-      if (cache.districts.has(code)) return cache.districts.get(code);
-      const district = await locationRepository.findDistrictByCode(code);
-      cache.districts.set(code, district);
-      return district;
-    }
-    return locationRepository.findDistrictByCode(code);
-  }
-
-  static async _resolveTeachingAreas(teachingAreas, cache = null) {
+  // Đọc tên tỉnh/huyện từ locationCache (RAM) — đồng bộ, không query DB.
+  static _resolveTeachingAreas(teachingAreas) {
     if (!teachingAreas || !teachingAreas.province) return null;
 
-    const province = await TutorMapper._getProvince(teachingAreas.province, cache);
+    const province = locationCache.getProvince(teachingAreas.province);
 
     let districts = [];
-    if (teachingAreas.districts && Array.isArray(teachingAreas.districts)) {
-      districts = await Promise.all(
-        teachingAreas.districts.map(async (code) => {
-          const d = await TutorMapper._getDistrict(code, cache);
-          return { code, name: d?.name || null };
-        })
-      );
+    if (Array.isArray(teachingAreas.districts)) {
+      districts = teachingAreas.districts.map((code) => ({
+        code,
+        name: locationCache.getDistrict(code)?.name || null,
+      }));
     }
 
     return {
@@ -107,13 +85,11 @@ class TutorMapper {
     };
   }
 
-  static async _resolveCurrentArea(currentArea, cache = null) {
+  static _resolveCurrentArea(currentArea) {
     if (!currentArea || !currentArea.province || !currentArea.district) return null;
 
-    const [province, district] = await Promise.all([
-      TutorMapper._getProvince(currentArea.province, cache),
-      TutorMapper._getDistrict(currentArea.district, cache),
-    ]);
+    const province = locationCache.getProvince(currentArea.province);
+    const district = locationCache.getDistrict(currentArea.district);
 
     return {
       province: currentArea.province,
