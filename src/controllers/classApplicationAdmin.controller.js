@@ -1,15 +1,9 @@
 const classApplicationAdminService = require("../services/classApplicationAdmin.service");
 const { successResponse } = require("../utils/response");
-const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const getClassApplications = async (req, res, next) => {
   try {
@@ -29,7 +23,7 @@ const getClassApplicationStats = async (req, res, next) => {
     const stats = await classApplicationAdminService.getClassApplicationStats(req.query);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Lấy thống kê đơn đăng ký thành công",
+      message: MESSAGE.CLASS_APPLICATION_STATS_SUCCESS,
       data: { stats },
     });
   } catch (error) {

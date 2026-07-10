@@ -1,5 +1,6 @@
 const notificationService = require("../services/notification.service");
 const { successResponse } = require("../utils/response");
+const MESSAGE = require("../constants/message");
 const ROLES = require("../constants/role");
 const { NOTIFICATION_AUDIENCE } = require("../constants/notification");
 
@@ -21,7 +22,7 @@ const getNotifications = async (req, res, next) => {
       audience,
     });
     return successResponse(res, {
-      message: "Lấy danh sách thông báo thành công",
+      message: MESSAGE.NOTIFICATION_LIST_SUCCESS,
       data: result,
     });
   } catch (error) {
@@ -33,7 +34,7 @@ const markAsRead = async (req, res, next) => {
   try {
     const notification = await notificationService.markAsRead(req.params.id, req.user.id);
     return successResponse(res, {
-      message: "Đã đánh dấu đã đọc",
+      message: MESSAGE.NOTIFICATION_MARK_READ_SUCCESS,
       data: { notification },
     });
   } catch (error) {
@@ -45,7 +46,7 @@ const markAllAsRead = async (req, res, next) => {
   try {
     await notificationService.markAllAsRead(req.user.id, resolveAudience(req));
     return successResponse(res, {
-      message: "Đã đánh dấu tất cả đã đọc",
+      message: MESSAGE.NOTIFICATION_MARK_ALL_READ_SUCCESS,
     });
   } catch (error) {
     next(error);

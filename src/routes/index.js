@@ -14,6 +14,7 @@ const settingsRoutes = require("./settings.routes");
 const promoRoutes = require("./promo.routes");
 const reviewRoutes = require("./review.routes");
 const chatRoutes = require("./chat.routes");
+const chatbotRoutes = require("./chatbot.routes");
 
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
@@ -28,5 +29,6 @@ router.use("/settings", settingsRoutes);
 router.use("/promos", promoRoutes);
 router.use("/reviews", reviewRoutes);
 router.use("/chat", chatRoutes);
+router.use("/chatbot", chatbotRoutes);
 
 module.exports = router;

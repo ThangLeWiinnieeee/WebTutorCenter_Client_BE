@@ -104,7 +104,7 @@ const updateClass = async (req, res, next) => {
     }
     const classItem = await classService.updatePostedClass(id, req.user.id, req.body);
     return successResponse(res, {
-      message: "Cập nhật bài đăng thành công",
+      message: MESSAGE.CLASS_UPDATE_SUCCESS,
       data: { classItem },
     });
   } catch (error) {
@@ -120,7 +120,7 @@ const deleteClass = async (req, res, next) => {
     }
     const result = await classService.deletePostedClass(id, req.user.id);
     return successResponse(res, {
-      message: "Đã xóa bài đăng",
+      message: MESSAGE.CLASS_DELETE_SUCCESS,
       data: result,
     });
   } catch (error) {
@@ -136,7 +136,7 @@ const completeClass = async (req, res, next) => {
     }
     const classItem = await classService.confirmClassCompletion(req.user.id, id);
     return successResponse(res, {
-      message: "Đã xác nhận hoàn thành lớp",
+      message: MESSAGE.CLASS_COMPLETE_SUCCESS,
       data: { classItem },
     });
   } catch (error) {

@@ -1,15 +1,9 @@
 const subjectService = require("../services/subject.service");
 const { successResponse } = require("../utils/response");
-const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 // Public: danh sách tên môn đang bật (cho các form chọn môn).
 const getActiveSubjects = async (req, res, next) => {

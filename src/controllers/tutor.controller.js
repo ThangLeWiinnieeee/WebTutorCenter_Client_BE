@@ -5,12 +5,7 @@ const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const registerTutor = async (req, res, next) => {
   try {
@@ -49,7 +44,7 @@ const getActiveTutors = async (req, res, next) => {
     const result = await tutorService.getActiveTutors(page, limit);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Lấy danh sách gia sư thành công",
+      message: MESSAGE.TUTOR_LIST_SUCCESS,
       data: result,
     });
   } catch (error) {
@@ -64,7 +59,7 @@ const getTopTutors = async (req, res, next) => {
     const tutors = await tutorService.getTopTutors(limit);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Lấy danh sách top gia sư thành công",
+      message: MESSAGE.TUTOR_TOP_SUCCESS,
       data: { tutors },
     });
   } catch (error) {
@@ -79,7 +74,7 @@ const getTopTutorsThisMonth = async (req, res, next) => {
     const tutors = await tutorService.getTopTutorsThisMonth(limit);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Lấy danh sách top gia sư tháng này thành công",
+      message: MESSAGE.TUTOR_TOP_MONTH_SUCCESS,
       data: { tutors },
     });
   } catch (error) {
@@ -95,7 +90,7 @@ const getNewTutors = async (req, res, next) => {
     const tutors = await tutorService.getNewTutors(days, limit);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Lấy danh sách gia sư mới thành công",
+      message: MESSAGE.TUTOR_NEW_SUCCESS,
       data: { tutors },
     });
   } catch (error) {
@@ -127,7 +122,7 @@ const searchActiveTutors = async (req, res, next) => {
     const result = await tutorService.searchActiveTutors(filters, page, limit);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Tìm kiếm gia sư thành công",
+      message: MESSAGE.TUTOR_SEARCH_SUCCESS,
       data: result,
     });
   } catch (error) {
@@ -141,7 +136,7 @@ const getTutorById = async (req, res, next) => {
     const tutor = await tutorService.getTutorById(req.params.id);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Lấy thông tin gia sư thành công",
+      message: MESSAGE.TUTOR_GET_SUCCESS,
       data: { tutor },
     });
   } catch (error) {
@@ -153,11 +148,11 @@ const getTutorById = async (req, res, next) => {
 const uploadDocument = async (req, res, next) => {
   try {
     if (!req.file) {
-      throw new AppError("Tải ảnh lên thất bại, vui lòng thử lại", HTTP_STATUS.BAD_REQUEST);
+      throw new AppError(MESSAGE.TUTOR_UPLOAD_DOC_FAILED, HTTP_STATUS.BAD_REQUEST);
     }
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Tải ảnh lên thành công",
+      message: MESSAGE.TUTOR_UPLOAD_DOC_SUCCESS,
       data: { url: req.file.path },
     });
   } catch (error) {

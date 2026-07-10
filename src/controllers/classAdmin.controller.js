@@ -1,15 +1,9 @@
 const classAdminService = require("../services/classAdmin.service");
 const { successResponse } = require("../utils/response");
-const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const getAdminClasses = async (req, res, next) => {
   try {
@@ -42,7 +36,7 @@ const deleteAdminClass = async (req, res, next) => {
     const result = await classAdminService.deleteAdminClass(req.params.id, req.user.id);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Đã chuyển bài đăng vào thùng rác",
+      message: MESSAGE.CLASS_TRASH_SUCCESS,
       data: result,
     });
   } catch (error) {

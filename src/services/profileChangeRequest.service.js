@@ -63,26 +63,17 @@ const validateDocuments = (changes, tutor, nextOccupation) => {
   const merged = (field) => (changes[field] !== undefined ? changes[field] : tutor[field]);
 
   if (!merged("cccdFrontImage") || !merged("cccdBackImage")) {
-    throw new AppError(
-      "Vui lòng tải đủ ảnh CCCD mặt trước và mặt sau.",
-      HTTP_STATUS.UNPROCESSABLE_ENTITY
-    );
+    throw new AppError(MESSAGE.PROFILE_CHANGE_CCCD_REQUIRED, HTTP_STATUS.UNPROCESSABLE_ENTITY);
   }
 
   if (nextOccupation === OCCUPATION_STATUS.STUDENT) {
     if (!merged("studentCardFrontImage") || !merged("studentCardBackImage")) {
-      throw new AppError(
-        "Vui lòng tải đủ ảnh thẻ sinh viên mặt trước và mặt sau.",
-        HTTP_STATUS.UNPROCESSABLE_ENTITY
-      );
+      throw new AppError(MESSAGE.PROFILE_CHANGE_STUDENT_CARD_REQUIRED, HTTP_STATUS.UNPROCESSABLE_ENTITY);
     }
   } else {
     const certs = merged("certificateImages");
     if (!Array.isArray(certs) || certs.length < 1) {
-      throw new AppError(
-        "Vui lòng tải lên ít nhất 1 ảnh bằng cấp.",
-        HTTP_STATUS.UNPROCESSABLE_ENTITY
-      );
+      throw new AppError(MESSAGE.PROFILE_CHANGE_CERTIFICATE_REQUIRED, HTTP_STATUS.UNPROCESSABLE_ENTITY);
     }
   }
 };

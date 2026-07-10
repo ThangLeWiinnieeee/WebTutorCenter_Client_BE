@@ -1,17 +1,10 @@
 const authService = require("../services/auth.service");
 const { successResponse } = require("../utils/response");
 const { REFRESH_TOKEN_COOKIE_OPTIONS, REFRESH_TOKEN_CLEAR_OPTIONS } = require("../utils/token");
-const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 
-// Lỗi người dùng trả JSON trực tiếp, lỗi hệ thống chuyển qua error middleware
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const register = async (req, res, next) => {
   try {

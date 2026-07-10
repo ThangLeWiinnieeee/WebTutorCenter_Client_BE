@@ -2,6 +2,7 @@ const Settings = require("../models/settings.model");
 const { successResponse } = require("../utils/response");
 const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
+const MESSAGE = require("../constants/message");
 
 const DEFAULT_FOOTER = {
   address: "54 Nguyễn Lương Bằng, Hòa Khánh Bắc, Liên Chiểu, Đà Nẵng",
@@ -35,7 +36,7 @@ const getFooterSettings = async (req, res, next) => {
     }
 
     return successResponse(res, {
-      message: "Lấy thông tin chân trang thành công",
+      message: MESSAGE.SETTINGS_FOOTER_GET_SUCCESS,
       data: footer.value,
     });
   } catch (error) {
@@ -49,7 +50,7 @@ const updateFooterSettings = async (req, res, next) => {
     
     // Simple verification
     if (!payload.address || !payload.phone || !payload.email) {
-      throw new AppError("Địa chỉ, số điện thoại và email là bắt buộc", HTTP_STATUS.BAD_REQUEST);
+      throw new AppError(MESSAGE.SETTINGS_FOOTER_REQUIRED, HTTP_STATUS.BAD_REQUEST);
     }
 
     const value = {
@@ -82,7 +83,7 @@ const updateFooterSettings = async (req, res, next) => {
     }
 
     return successResponse(res, {
-      message: "Cập nhật thông tin chân trang thành công",
+      message: MESSAGE.SETTINGS_FOOTER_UPDATE_SUCCESS,
       data: footer.value,
     });
   } catch (error) {

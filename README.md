@@ -14,6 +14,8 @@ Backend API cho hệ thống quản lý trung tâm gia sư trực tuyến. Dự 
 - google-auth-library (đăng nhập Google)
 - Cloudinary + Multer (+ multer-storage-cloudinary) — upload avatar, giấy tờ gia sư, ảnh chat
 - cookie-parser, morgan, cors, dotenv
+- axios (gọi các service nội bộ: chatbot, AI-service…)
+- express-rate-limit (chống spam `/api/chatbot`)
 
 ## Yêu Cầu
 
@@ -81,11 +83,11 @@ src/
 ├── models/             # Mongoose schema
 ├── validations/        # Joi schema cho request validation
 ├── routes/             # Khai báo endpoint + middleware; index.js mount tất cả dưới /api
-├── configs/            # database, cloudinary, cors, dns, socket (Socket.IO)
+├── configs/            # database, cloudinary, cors, dns, socket (Socket.IO), chatbot (axios client)
 ├── constants/          # status, message, role, otpType, accountType, occupationStatus, tutor
-├── middlewares/        # auth (+ .optional), role, validate, error
+├── middlewares/        # auth (+ .optional), role, validate, error, chatbot (buildChatbotRequest), rateLimit
 └── utils/              # token, response, hash, email, otp, upload, pagination,
-                        #   code, classLifecycle (scheduler), locationCache, search, AppError
+                        #   code, classLifecycle (scheduler), locationCache, search, serviceClient, AppError
 ```
 
 **Cache tỉnh/huyện (`utils/locationCache.js`)**: dữ liệu tỉnh/huyện là tĩnh nên được nạp toàn bộ vào RAM (Map theo `code`) thay vì query MongoDB theo từng mã. Loại bỏ N+1 khi resolve tên khu vực ở `TutorMapper`, `profileChangeRequest.mapper` và `class.service` (danh sách gia sư/lớp: từ ~N query location/trang → 0). Tự làm mới bằng TTL (10 phút) — sau khi cập nhật DB, cache tự nạp lại data mới mà không cần restart; cần tức thì thì gọi `invalidate()`. Preload sẵn lúc server khởi động.
@@ -96,9 +98,11 @@ Submodule trong `classes`: `class.application.*` (ứng tuyển / chọn / hủy
 
 **Chat** gồm `chat.controller/service/validation`, model `conversation`/`message`, repository tương ứng và mapper `conversation`/`message`. Mỗi người dùng (gia sư hoặc học viên) có đúng một cuộc trò chuyện với admin (`findOrCreateByTutorUserId`).
 
+**Chatbot** (`chatbot.controller/service/validation` + `middlewares/chatbot.middleware`) là **proxy** sang chatbot-service (FastAPI riêng), không có model/DB. Khác hẳn module `chat` ở trên (chat người dùng ↔ admin realtime).
+
 ## API Overview
 
-Tất cả route mount dưới `/api` (`src/routes/index.js`): `auth`, `users`, `tutors`, `locations`, `notifications`, `classes`, `lookups`, `subjects`, `admin`, `settings`, `promos`, `reviews`, `chat`.
+Tất cả route mount dưới `/api` (`src/routes/index.js`): `auth`, `users`, `tutors`, `locations`, `notifications`, `classes`, `lookups`, `subjects`, `admin`, `settings`, `promos`, `reviews`, `chat`, `chatbot`.
 
 ### Auth — `/api/auth`
 
@@ -227,6 +231,21 @@ Mỗi người dùng không phải admin (gia sư hoặc học viên) có một 
 | POST | `/conversations/:id/read` | admin | Đánh dấu đã đọc |
 
 **Realtime (Socket.IO):** client kết nối tới cùng host (không có `/api`), xác thực bằng access token qua `handshake.auth.token`. Mỗi user vào phòng `user:<id>`, admin vào thêm phòng `admins`. Server phát các sự kiện `chat:message`, `chat:read`, `chat:conversation` để đồng bộ tin nhắn, trạng thái đã đọc và hội thoại mới.
+
+### Chatbot — `/api/chatbot`
+
+BE **proxy** câu hỏi người dùng sang **chatbot-service** (FastAPI riêng, xem [`../chatbot-service`](../chatbot-service)); BE không tự xử lý hội thoại. Không có model/DB — chỉ `route → middleware → controller → service` (gọi HTTP bằng **axios** qua client nội bộ dùng chung [`utils/serviceClient.js`](src/utils/serviceClient.js), tái dùng cho các AI-service khác về sau như quét CCCD).
+
+| Method | Endpoint | Auth | Mô tả |
+|---|---|---|---|
+| POST | `/` | optional | Hỏi trợ lý ảo. Có token → forward `Authorization: Bearer` + `user{id,role}` xuống chatbot cho câu "của tôi"; không token → vẫn trả lời câu hỏi chung |
+
+- **Rate limit** (`express-rate-limit`): **chỉ bật ở production** (dev bỏ qua để test thoải mái) — mặc định 20 req/60s/IP → vượt trả `429`, chống spam đốt quota LLM. Chỉnh bằng `CHATBOT_RATE_MAX`/`CHATBOT_RATE_WINDOW_MS`. Sau reverse proxy hosting cần `trust proxy` (cũng chỉ bật ở production trong `app.js`) để đếm đúng theo IP client.
+- Body: `{ message (bắt buộc), history?, sessionId? }` (validate bằng `chatbot.validation`).
+- Middleware `buildChatbotRequest` bóc token + chuẩn hoá `user` vào `req.chatbotRequest`; controller chỉ gọi service + trả data.
+- Header `X-Internal-Secret` tự gắn khi đặt `CHATBOT_INTERNAL_SECRET` (xác thực service-to-service).
+- Chatbot lỗi/tắt/timeout → `503` với thông báo rõ ràng, không làm sập BE.
+- Biến môi trường: `CHATBOT_URL` (mặc định `http://localhost:8001`), `CHATBOT_INTERNAL_SECRET`, `CHATBOT_TIMEOUT_MS` (mặc định `20000`).
 
 ### Admin — `/api/admin` (toàn bộ yêu cầu role `admin`)
 

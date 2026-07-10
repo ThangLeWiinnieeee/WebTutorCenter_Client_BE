@@ -21,10 +21,7 @@ const applyForClass = async (userId, classId) => {
 
   // Lớp đã có gia sư nhận hoặc đã hết hạn thì không cho nhận nữa
   if (classItem.status && classItem.status !== CLASS_STATUS.OPEN) {
-    throw new AppError(
-      "Lớp này không còn nhận đăng ký (đã có gia sư hoặc đã hết hạn).",
-      HTTP_STATUS.CONFLICT,
-    );
+    throw new AppError(MESSAGE.CLASS_APPLICATION_CLASS_CLOSED, HTTP_STATUS.CONFLICT);
   }
 
   // Người đăng đã chọn gia sư (đơn selected) hoặc lớp đang được xử lý (approved/cancel_requested)
@@ -32,10 +29,7 @@ const applyForClass = async (userId, classId) => {
   // đồng bộ với tiêu chí ẩn danh sách (LOCK_STATUSES). Lưu ý: status lớp vẫn "open" tới khi admin duyệt.
   const lockingApplication = await classApplicationRepository.findLockingByClassId(classId);
   if (lockingApplication) {
-    throw new AppError(
-      "Lớp này đã có gia sư được chọn hoặc đang xử lý, không thể nhận nữa.",
-      HTTP_STATUS.CONFLICT,
-    );
+    throw new AppError(MESSAGE.CLASS_APPLICATION_CLASS_TAKEN, HTTP_STATUS.CONFLICT);
   }
 
   // Không cho phép nhận lớp do chính mình đăng
@@ -47,15 +41,12 @@ const applyForClass = async (userId, classId) => {
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
   if (tutor.status !== TUTOR_STATUS.APPROVED) {
-    throw new AppError("Hồ sơ gia sư của bạn chưa được phê duyệt", HTTP_STATUS.FORBIDDEN);
+    throw new AppError(MESSAGE.TUTOR_NOT_APPROVED, HTTP_STATUS.FORBIDDEN);
   }
 
   // Bắt buộc có hồ sơ chứng thực đầy đủ (CCCD + thẻ sinh viên/bằng cấp) trước khi nhận lớp
   if (!tutorService.hasCompleteDocuments(tutor)) {
-    throw new AppError(
-      "Bạn cần bổ sung ảnh CCCD và thẻ sinh viên/bằng cấp trong hồ sơ trước khi nhận lớp.",
-      HTTP_STATUS.UNPROCESSABLE_ENTITY,
-    );
+    throw new AppError(MESSAGE.CLASS_APPLICATION_DOCS_REQUIRED, HTTP_STATUS.UNPROCESSABLE_ENTITY);
   }
 
   if (!tutor.subjects.includes(classItem.subject)) {

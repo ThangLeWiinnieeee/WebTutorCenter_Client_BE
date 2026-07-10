@@ -1,14 +1,9 @@
 const lookupService = require("../services/lookup.service");
 const { successResponse } = require("../utils/response");
-const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
+const MESSAGE = require("../constants/message");
 
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const lookupController = {
   // Lấy lookup values theo type (public)
@@ -18,7 +13,7 @@ const lookupController = {
       const values = await lookupService.getByType(type);
       return successResponse(res, {
         statusCode: HTTP_STATUS.OK,
-        message: "Lấy danh sách thành công",
+        message: MESSAGE.LOOKUP_LIST_SUCCESS,
         data: { values },
       });
     } catch (error) {
@@ -33,7 +28,7 @@ const lookupController = {
       const districts = await lookupService.getDistrictsByProvince(province);
       return successResponse(res, {
         statusCode: HTTP_STATUS.OK,
-        message: "Lấy danh sách quận/huyện thành công",
+        message: MESSAGE.LOCATION_DISTRICTS_SUCCESS,
         data: { districts },
       });
     } catch (error) {
@@ -47,7 +42,7 @@ const lookupController = {
       const data = await lookupService.getAllGrouped();
       return successResponse(res, {
         statusCode: HTTP_STATUS.OK,
-        message: "Lấy danh sách lookup thành công",
+        message: MESSAGE.LOOKUP_ALL_SUCCESS,
         data,
       });
     } catch (error) {
@@ -61,7 +56,7 @@ const lookupController = {
       const lookup = await lookupService.createLookup(req.body);
       return successResponse(res, {
         statusCode: HTTP_STATUS.CREATED,
-        message: "Tạo lookup thành công",
+        message: MESSAGE.LOOKUP_CREATE_SUCCESS,
         data: { lookup },
       });
     } catch (error) {
@@ -91,7 +86,7 @@ const lookupController = {
       const lookup = await lookupService.updateLookup(id, req.body);
       return successResponse(res, {
         statusCode: HTTP_STATUS.OK,
-        message: "Cập nhật lookup thành công",
+        message: MESSAGE.LOOKUP_UPDATE_SUCCESS,
         data: { lookup },
       });
     } catch (error) {
@@ -106,7 +101,7 @@ const lookupController = {
       await lookupService.deleteLookup(id);
       return successResponse(res, {
         statusCode: HTTP_STATUS.OK,
-        message: "Xóa lookup thành công",
+        message: MESSAGE.LOOKUP_DELETE_SUCCESS,
       });
     } catch (error) {
       handleError(error, res, next);

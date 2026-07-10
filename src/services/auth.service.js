@@ -240,7 +240,7 @@ const login = async ({ email, password }) => {
   }
 
   if (!user.isActive) {
-    throw new AppError("Tài khoản của bạn đã bị vô hiệu hóa", HTTP_STATUS.FORBIDDEN);
+    throw new AppError(MESSAGE.ACCOUNT_DEACTIVATED, HTTP_STATUS.FORBIDDEN);
   }
 
   // Tài khoản Google: không có hash mật khẩu — tránh gọi bcrypt (sẽ lỗi Illegal arguments: string, object)
@@ -316,7 +316,7 @@ const googleLogin = async ({ credential }) => {
     }
 
     if (!existingUser.isActive) {
-      throw new AppError("Tài khoản của bạn đã bị vô hiệu hóa", HTTP_STATUS.FORBIDDEN);
+      throw new AppError(MESSAGE.ACCOUNT_DEACTIVATED, HTTP_STATUS.FORBIDDEN);
     }
 
     const { accessToken, refreshToken } = await _issueTokens(existingUser);
