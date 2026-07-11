@@ -23,6 +23,8 @@ const PROFILE_CHANGE_EDITABLE_FIELDS = [
   "studentCardFrontImage",
   "studentCardBackImage",
   "certificateImages",
+  // Bằng cấp công khai (không phải giấy tờ chứng thực) — đổi tự do, vẫn qua duyệt admin.
+  "publicCertificateImages",
 ];
 
 module.exports = { PROFILE_CHANGE_STATUS, PROFILE_CHANGE_EDITABLE_FIELDS };

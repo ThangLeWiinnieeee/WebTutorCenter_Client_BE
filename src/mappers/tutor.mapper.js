@@ -43,6 +43,8 @@ class TutorMapper {
       schoolName: tutor.schoolName,
       graduationYear: tutor.graduationYear,
       bio: tutor.bio,
+      // Bằng cấp công khai — gia sư chủ động cho mọi người xem (khác ảnh xác thực riêng tư).
+      publicCertificateImages: tutor.publicCertificateImages || [],
       availability: tutor.availability,
       totalClassesAccepted: tutor.totalClassesAccepted ?? 0,
       classesAcceptedThisMonth: tutor.classesAcceptedThisMonth ?? 0,

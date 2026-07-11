@@ -200,6 +200,16 @@ const registerTutorSchema = Joi.object({
       "array.min": "Vui lòng tải lên ít nhất 1 ảnh bằng cấp",
       "any.required": "Ảnh bằng cấp là bắt buộc",
     }),
+
+  // Bằng cấp công khai (tùy chọn) — gia sư cho mọi người xem; tối đa 5, không bắt buộc.
+  publicCertificateImages: Joi.array()
+    .items(Joi.string().uri().messages({ "string.uri": "Ảnh bằng cấp công khai không hợp lệ" }))
+    .max(5)
+    .default([])
+    .messages({
+      "array.base": "Danh sách bằng cấp công khai phải là một mảng",
+      "array.max": "Tối đa 5 ảnh bằng cấp công khai",
+    }),
 });
 
 const rejectTutorSchema = Joi.object({
@@ -275,6 +285,12 @@ const profileChangeRequestSchema = Joi.object({
     .items(Joi.string().uri().messages({ "string.uri": "Ảnh bằng cấp không hợp lệ" }))
     .max(5)
     .messages({ "array.max": "Tối đa 5 ảnh bằng cấp" }),
+
+  // Bằng cấp công khai — cho phép bổ sung / cập nhật / gỡ (mảng rỗng), qua duyệt.
+  publicCertificateImages: Joi.array()
+    .items(Joi.string().uri().messages({ "string.uri": "Ảnh bằng cấp công khai không hợp lệ" }))
+    .max(5)
+    .messages({ "array.max": "Tối đa 5 ảnh bằng cấp công khai" }),
 })
   .min(1)
   .messages({ "object.min": "Vui lòng cung cấp ít nhất một thông tin để cập nhật" });
