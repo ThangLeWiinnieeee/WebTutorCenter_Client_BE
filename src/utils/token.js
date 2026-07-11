@@ -1,23 +1,29 @@
 const jwt = require("jsonwebtoken");
 
+// Pin thuật toán HS256 cho cả ký và xác thực. Khi verify, chỉ chấp nhận HS256 để chặn
+// algorithm-confusion (vd token giả với alg "none" hoặc RS256 lợi dụng public key).
+const JWT_ALG = "HS256";
+
 const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+    algorithm: JWT_ALG,
     expiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN || "15m",
   });
 };
 
 const generateRefreshToken = (payload) => {
   return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, {
+    algorithm: JWT_ALG,
     expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || "7d",
   });
 };
 
 const verifyAccessToken = (token) => {
-  return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+  return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, { algorithms: [JWT_ALG] });
 };
 
 const verifyRefreshToken = (token) => {
-  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+  return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, { algorithms: [JWT_ALG] });
 };
 
 // Reset token dùng riêng cho luồng quên mật khẩu, hết hạn sau 15 phút
@@ -25,12 +31,12 @@ const generateResetToken = (payload) => {
   return jwt.sign(
     { ...payload, purpose: "reset_password" },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: "15m" }
+    { algorithm: JWT_ALG, expiresIn: "15m" }
   );
 };
 
 const verifyResetToken = (token) => {
-  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, { algorithms: [JWT_ALG] });
   if (decoded.purpose !== "reset_password") {
     throw new Error("Token không đúng mục đích");
   }

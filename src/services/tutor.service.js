@@ -88,7 +88,7 @@ const registerTutor = async (userId, tutorData) => {
   await notificationService.createNotification({
     userId,
     type: NOTIFICATION_TYPES.TUTOR_PENDING,
-    message: "Hồ sơ gia sư của bạn đang chờ xét duyệt. Chúng tôi sẽ thông báo khi có kết quả.",
+    message: MESSAGE.NOTIF_TUTOR_PENDING,
   });
 
   // Chủ hồ sơ được xem lại ảnh giấy tờ của chính mình

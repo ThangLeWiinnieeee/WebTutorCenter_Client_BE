@@ -1,4 +1,5 @@
 const userRepository = require("../repositories/user.repository");
+const MESSAGE = require("../constants/message");
 const tutorRepository = require("../repositories/tutor.repository");
 const classRepository = require("../repositories/class.repository");
 const promoRepository = require("../repositories/promo.repository");
@@ -134,7 +135,7 @@ const TRASH_ENTITIES = {
 
 const getTrashEntity = (type) => {
   const entity = TRASH_ENTITIES[type];
-  if (!entity) throw new AppError("Loại dữ liệu không hợp lệ", HTTP_STATUS.BAD_REQUEST);
+  if (!entity) throw new AppError(MESSAGE.TRASH_TYPE_INVALID, HTTP_STATUS.BAD_REQUEST);
   return entity;
 };
 
@@ -153,14 +154,14 @@ const getTrashItems = async (type, query = {}) => {
 const restoreTrashItem = async (type, id) => {
   const entity = getTrashEntity(type);
   const restored = await entity.restore(id);
-  if (!restored) throw new AppError("Không tìm thấy mục cần khôi phục", HTTP_STATUS.NOT_FOUND);
+  if (!restored) throw new AppError(MESSAGE.TRASH_RESTORE_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   return { id };
 };
 
 const purgeTrashItem = async (type, id) => {
   const entity = getTrashEntity(type);
   const purged = await entity.purge(id);
-  if (!purged) throw new AppError("Không tìm thấy mục cần xóa", HTTP_STATUS.NOT_FOUND);
+  if (!purged) throw new AppError(MESSAGE.TRASH_PURGE_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   return { id };
 };
 

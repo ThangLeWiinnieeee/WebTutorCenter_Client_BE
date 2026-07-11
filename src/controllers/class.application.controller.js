@@ -1,15 +1,9 @@
 const classApplicationService = require("../services/class.application.service");
 const { successResponse } = require("../utils/response");
-const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const applyForClass = async (req, res, next) => {
   try {

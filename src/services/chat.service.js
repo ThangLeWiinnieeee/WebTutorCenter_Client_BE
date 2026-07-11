@@ -5,6 +5,7 @@ const User = require("../models/user.model");
 const { CHAT_ROLES } = require("../constants/chat");
 const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
+const MESSAGE = require("../constants/message");
 const ROLES = require("../constants/role");
 const { ConversationMapper, MessageMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
@@ -25,7 +26,7 @@ const normalizeMessageInput = ({ content, imageUrl } = {}) => {
   const text = (content || "").trim();
   const image = imageUrl || null;
   if (!text && !image) {
-    throw new AppError("Vui lòng nhập nội dung hoặc đính kèm ảnh", HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(MESSAGE.CHAT_CONTENT_OR_IMAGE_REQUIRED, HTTP_STATUS.BAD_REQUEST);
   }
   return { text, image };
 };
@@ -142,7 +143,7 @@ const getAdminConversations = async (query = {}) => {
 
 const getAdminConversationMessages = async (conversationId, query = {}) => {
   const conversation = await conversationRepository.findById(conversationId);
-  if (!conversation) throw new AppError("Không tìm thấy cuộc trò chuyện", HTTP_STATUS.NOT_FOUND);
+  if (!conversation) throw new AppError(MESSAGE.CHAT_CONVERSATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 30));
@@ -162,7 +163,7 @@ const getAdminConversationMessages = async (conversationId, query = {}) => {
 const sendMessageAsAdmin = async (conversationId, adminUserId, input) => {
   const { text, image } = normalizeMessageInput(input);
   const conversation = await conversationRepository.findById(conversationId);
-  if (!conversation) throw new AppError("Không tìm thấy cuộc trò chuyện", HTTP_STATUS.NOT_FOUND);
+  if (!conversation) throw new AppError(MESSAGE.CHAT_CONVERSATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
   const message = await messageRepository.create({
     conversationId,
@@ -199,7 +200,7 @@ const sendMessageAsAdmin = async (conversationId, adminUserId, input) => {
 
 const markAdminRead = async (conversationId) => {
   const conversation = await conversationRepository.findById(conversationId);
-  if (!conversation) throw new AppError("Không tìm thấy cuộc trò chuyện", HTTP_STATUS.NOT_FOUND);
+  if (!conversation) throw new AppError(MESSAGE.CHAT_CONVERSATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   await conversationRepository.updateById(conversationId, { adminUnread: 0 });
   // Đồng bộ badge/đếm chưa đọc cho các admin khác.
   emitToAdmins(CHAT_EVENTS.READ, { conversationId, viewerRole: CHAT_ROLES.ADMIN });
@@ -214,9 +215,9 @@ const getAdminUnreadTotal = async () => {
 // kể cả khi họ chưa nhắn tin trước.
 const startConversationWithTutor = async (tutorUserId) => {
   const target = await userRepository.findById(tutorUserId);
-  if (!target) throw new AppError("Không tìm thấy người dùng", HTTP_STATUS.NOT_FOUND);
+  if (!target) throw new AppError(MESSAGE.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   if (target.role === ROLES.ADMIN) {
-    throw new AppError("Không thể nhắn tin với quản trị viên", HTTP_STATUS.UNPROCESSABLE_ENTITY);
+    throw new AppError(MESSAGE.CHAT_CANNOT_MESSAGE_ADMIN, HTTP_STATUS.UNPROCESSABLE_ENTITY);
   }
   const conversation = await conversationRepository.findOrCreateByTutorUserId(tutorUserId);
   const dto = ConversationMapper.toDTO(conversation, CHAT_ROLES.ADMIN);

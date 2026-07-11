@@ -4,12 +4,7 @@ const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const getUserInfo = async (req, res, next) => {
   try {

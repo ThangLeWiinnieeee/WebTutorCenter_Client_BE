@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test": "node --test",
     "seed:users": "node -r ./scripts/_atlasDns.js scripts/seedDemoData.js users",
     "seed:tutors": "node -r ./scripts/_atlasDns.js scripts/seedDemoData.js tutors",
     "seed:schools": "node -r ./scripts/_atlasDns.js scripts/seedSchools.js",
@@ -21,12 +22,14 @@
     "cleanup:orphans": "node -r ./scripts/_atlasDns.js scripts/cleanupOrphanedData.js"
   },
   "dependencies": {
+    "axios": "^1.18.1",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.5.2",
     "google-auth-library": "^10.6.2",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",

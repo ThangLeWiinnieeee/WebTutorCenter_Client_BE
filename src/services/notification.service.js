@@ -1,6 +1,7 @@
 const notificationRepository = require("../repositories/notification.repository");
 const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
+const MESSAGE = require("../constants/message");
 const { NotificationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 
@@ -31,7 +32,7 @@ const getUserNotifications = async (userId, query = {}) => {
 const markAsRead = async (notificationId, userId) => {
   const notification = await notificationRepository.markAsRead(notificationId, userId);
   if (!notification) {
-    throw new AppError("Không tìm thấy thông báo", HTTP_STATUS.NOT_FOUND);
+    throw new AppError(MESSAGE.NOTIFICATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
   return NotificationMapper.toDTO(notification);
 };

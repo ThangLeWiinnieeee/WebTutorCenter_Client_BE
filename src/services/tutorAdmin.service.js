@@ -30,7 +30,7 @@ const approveTutor = async (tutorId) => {
   const tutor = await tutorRepository.findById(tutorId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   if (tutor.status !== TUTOR_STATUS.PENDING) {
-    throw new AppError("Hồ sơ này không ở trạng thái chờ duyệt", HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(MESSAGE.TUTOR_NOT_PENDING, HTTP_STATUS.BAD_REQUEST);
   }
   const updated = await tutorRepository.update(tutorId, { status: TUTOR_STATUS.APPROVED });
   const userId = tutor.userId?._id ?? tutor.userId;
@@ -38,7 +38,7 @@ const approveTutor = async (tutorId) => {
   await notificationService.createNotification({
     userId,
     type: NOTIFICATION_TYPES.TUTOR_APPROVED,
-    message: "Chúc mừng! Hồ sơ gia sư của bạn đã được phê duyệt. Bạn chính thức trở thành gia sư.",
+    message: MESSAGE.NOTIF_TUTOR_APPROVED,
   });
   return await TutorMapper.toDTO(updated, null);
 };
@@ -47,7 +47,7 @@ const rejectTutor = async (tutorId, rejectionReason) => {
   const tutor = await tutorRepository.findById(tutorId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   if (tutor.status !== TUTOR_STATUS.PENDING) {
-    throw new AppError("Hồ sơ này không ở trạng thái chờ duyệt", HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(MESSAGE.TUTOR_NOT_PENDING, HTTP_STATUS.BAD_REQUEST);
   }
   const updated = await tutorRepository.update(tutorId, { status: TUTOR_STATUS.REJECTED, rejectionReason });
   const userId = tutor.userId?._id ?? tutor.userId;

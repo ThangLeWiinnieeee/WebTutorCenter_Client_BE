@@ -6,8 +6,11 @@ const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:4000")
   .filter(Boolean);
 
 // Cho phép các bản preview deploy của Vercel (mỗi commit một URL *.vercel.app).
-// Bỏ dòng này nếu muốn siết chặt chỉ đúng domain production.
+// CHỈ bật ngoài production: với credentials=true, cho mọi *.vercel.app ở production nghĩa là
+// bất kỳ ai deploy lên vercel.app đều thành origin được tin → siết lại, prod chỉ dùng allowlist.
+const isProduction = process.env.NODE_ENV === "production";
 const isVercelPreview = (origin) => {
+  if (isProduction) return false;
   try {
     return new URL(origin).hostname.endsWith(".vercel.app");
   } catch {

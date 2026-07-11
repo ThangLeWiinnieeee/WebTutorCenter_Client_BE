@@ -1,17 +1,11 @@
 const authService = require("../services/auth.service");
 const { successResponse } = require("../utils/response");
 const { REFRESH_TOKEN_COOKIE_OPTIONS, REFRESH_TOKEN_CLEAR_OPTIONS } = require("../utils/token");
-const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
+const { LOGIN_FREE_ATTEMPTS } = require("../middlewares/rateLimit.middleware");
 
-// Lỗi người dùng trả JSON trực tiếp, lỗi hệ thống chuyển qua error middleware
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const register = async (req, res, next) => {
   try {
@@ -85,6 +79,16 @@ const login = async (req, res, next) => {
       data: { accessToken, user },
     });
   } catch (error) {
+    // Sau LOGIN_FREE_ATTEMPTS lần sai mật khẩu, kèm số lượt còn lại vào thông báo
+    // (req.rateLimit do loginRateLimiter đặt; chỉ đếm lần thất bại).
+    const rl = req.rateLimit;
+    if (
+      rl &&
+      rl.used > LOGIN_FREE_ATTEMPTS &&
+      error?.message === MESSAGE.INVALID_CREDENTIALS
+    ) {
+      error.message = `${MESSAGE.INVALID_CREDENTIALS}. Bạn còn ${rl.remaining} lần thử.`;
+    }
     handleError(error, res, next);
   }
 };

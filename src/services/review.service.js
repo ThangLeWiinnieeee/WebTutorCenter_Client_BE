@@ -137,7 +137,7 @@ const replyToReview = async (tutorUserId, reviewId, comment) => {
     await notificationService.createNotification({
       userId: review.reviewerId,
       type: NOTIFICATION_TYPES.REVIEW_REPLIED,
-      message: "Gia sư đã phản hồi đánh giá của bạn. Xem phản hồi trong trang chi tiết gia sư.",
+      message: MESSAGE.NOTIF_REVIEW_REPLIED,
     });
   }
 

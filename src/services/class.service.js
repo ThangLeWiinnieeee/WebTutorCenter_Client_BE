@@ -505,17 +505,14 @@ const updatePostedClass = async (classId, userId, payload) => {
 
   const ownerId = classItem.createdBy?._id ?? classItem.createdBy;
   if (String(ownerId) !== String(userId)) {
-    throw new AppError("Bạn không có quyền sửa bài đăng này.", HTTP_STATUS.FORBIDDEN);
+    throw new AppError(MESSAGE.CLASS_EDIT_FORBIDDEN, HTTP_STATUS.FORBIDDEN);
   }
   if (classItem.status !== CLASS_STATUS.OPEN) {
-    throw new AppError("Chỉ có thể sửa bài đăng khi đang mở (chưa ghép gia sư).", HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(MESSAGE.CLASS_EDIT_ONLY_OPEN, HTTP_STATUS.BAD_REQUEST);
   }
   const activeCount = await classApplicationRepository.countActiveByClassId(classId);
   if (activeCount > 0) {
-    throw new AppError(
-      "Không thể sửa bài đăng khi đã có gia sư ứng tuyển. Vui lòng xử lý đơn trước.",
-      HTTP_STATUS.BAD_REQUEST,
-    );
+    throw new AppError(MESSAGE.CLASS_EDIT_HAS_APPLICANTS, HTTP_STATUS.BAD_REQUEST);
   }
 
   // Validate khu vực + tính lại học phí theo thông tin mới
@@ -565,14 +562,11 @@ const deletePostedClass = async (classId, userId) => {
 
   const ownerId = classItem.createdBy?._id ?? classItem.createdBy;
   if (String(ownerId) !== String(userId)) {
-    throw new AppError("Bạn không có quyền xóa bài đăng này.", HTTP_STATUS.FORBIDDEN);
+    throw new AppError(MESSAGE.CLASS_DELETE_FORBIDDEN, HTTP_STATUS.FORBIDDEN);
   }
   const activeCount = await classApplicationRepository.countActiveByClassId(classId);
   if (activeCount > 0) {
-    throw new AppError(
-      "Không thể xóa bài đăng khi đã có gia sư ứng tuyển hoặc nhận lớp. Vui lòng liên hệ admin nếu cần.",
-      HTTP_STATUS.BAD_REQUEST,
-    );
+    throw new AppError(MESSAGE.CLASS_DELETE_HAS_APPLICANTS, HTTP_STATUS.BAD_REQUEST);
   }
   // Xóa hẳn khỏi DB kèm các đơn nhận lớp liên quan (không đưa vào thùng rác)
   await classApplicationRepository.deleteByClassId(classId);
@@ -608,7 +602,7 @@ const confirmClassCompletion = async (userId, classId) => {
   const classItem = await classRepository.findById(classId);
   if (!classItem) throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   if (classItem.status !== CLASS_STATUS.MATCHED) {
-    throw new AppError("Chỉ lớp đã có gia sư nhận mới có thể xác nhận hoàn thành.", HTTP_STATUS.BAD_REQUEST);
+    throw new AppError(MESSAGE.CLASS_COMPLETE_ONLY_MATCHED, HTTP_STATUS.BAD_REQUEST);
   }
 
   const isPoster = String(classItem.createdBy) === String(userId);
@@ -620,7 +614,7 @@ const confirmClassCompletion = async (userId, classId) => {
     isTutor = Boolean(approvedApp) && String(tutorUserId) === String(userId);
   }
   if (!isPoster && !isTutor) {
-    throw new AppError("Bạn không có quyền xác nhận hoàn thành lớp này.", HTTP_STATUS.FORBIDDEN);
+    throw new AppError(MESSAGE.CLASS_COMPLETE_FORBIDDEN, HTTP_STATUS.FORBIDDEN);
   }
 
   const completedByPoster = Boolean(classItem.completedByPoster) || isPoster;

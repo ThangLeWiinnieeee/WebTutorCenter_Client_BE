@@ -1,21 +1,16 @@
 const trashAdminService = require("../services/trashAdmin.service");
 const { successResponse } = require("../utils/response");
-const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
+const MESSAGE = require("../constants/message");
 
-const handleError = (error, res, next) => {
-  if (error instanceof AppError) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const handleError = require("../utils/handleError");
 
 const getTrashItems = async (req, res, next) => {
   try {
     const data = await trashAdminService.getTrashItems(req.params.type, req.query);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Lấy danh sách thùng rác thành công",
+      message: MESSAGE.TRASH_LIST_SUCCESS,
       data,
     });
   } catch (error) {
@@ -28,7 +23,7 @@ const getTrashCounts = async (req, res, next) => {
     const counts = await trashAdminService.getTrashCounts();
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Lấy số lượng thùng rác thành công",
+      message: MESSAGE.TRASH_COUNTS_SUCCESS,
       data: { counts },
     });
   } catch (error) {
@@ -41,7 +36,7 @@ const restoreTrashItem = async (req, res, next) => {
     const result = await trashAdminService.restoreTrashItem(req.params.type, req.params.id);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Khôi phục thành công",
+      message: MESSAGE.TRASH_RESTORE_SUCCESS,
       data: result,
     });
   } catch (error) {
@@ -54,7 +49,7 @@ const purgeTrashItem = async (req, res, next) => {
     const result = await trashAdminService.purgeTrashItem(req.params.type, req.params.id);
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
-      message: "Đã xóa vĩnh viễn",
+      message: MESSAGE.TRASH_PURGE_SUCCESS,
       data: result,
     });
   } catch (error) {

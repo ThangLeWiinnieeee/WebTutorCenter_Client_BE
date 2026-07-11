@@ -11,6 +11,11 @@ oAuth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
 // Địa chỉ gửi hiển thị; phần email phải là tài khoản Gmail đã cấp quyền (GMAIL_USER).
 const FROM_ADDRESS = process.env.EMAIL_FROM || `WebTutorCenter <${process.env.GMAIL_USER}>`;
 
+// Chống XSS/HTML-injection: escape dữ liệu người dùng (fullName) trước khi nhét vào HTML email.
+// XSS được chặn ở NƠI XUẤT HTML (email), không phải bằng cách strip input.
+const HTML_ESCAPE = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => HTML_ESCAPE[c]);
+
 // Dựng message RFC 2822 rồi mã hóa base64url theo yêu cầu của Gmail API.
 const _buildRawMessage = ({ from, to, subject, html }) => {
   const subjectEncoded = `=?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`;
@@ -51,7 +56,7 @@ const sendOtpEmail = async ({ to, fullName, otp, expiresInMinutes }) => {
         <h2 style="color: #1d4ed8; margin-bottom: 4px;">WebTutorCenter</h2>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin-bottom: 20px;" />
 
-        <p style="font-size: 15px; color: #374151;">Xin chào <strong>${fullName}</strong>,</p>
+        <p style="font-size: 15px; color: #374151;">Xin chào <strong>${escapeHtml(fullName)}</strong>,</p>
         <p style="font-size: 15px; color: #374151;">
           Cảm ơn bạn đã đăng ký tài khoản. Vui lòng sử dụng mã OTP dưới đây để xác thực email:
         </p>
@@ -95,7 +100,7 @@ const sendForgotPasswordOtpEmail = async ({ to, fullName, otp, expiresInMinutes 
         <h2 style="color: #dc2626; margin-bottom: 4px;">WebTutorCenter</h2>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin-bottom: 20px;" />
 
-        <p style="font-size: 15px; color: #374151;">Xin chào <strong>${fullName}</strong>,</p>
+        <p style="font-size: 15px; color: #374151;">Xin chào <strong>${escapeHtml(fullName)}</strong>,</p>
         <p style="font-size: 15px; color: #374151;">
           Chúng tôi nhận được yêu cầu <strong>khôi phục mật khẩu</strong> cho tài khoản của bạn.
           Vui lòng sử dụng mã OTP dưới đây:
@@ -131,4 +136,4 @@ const sendForgotPasswordOtpEmail = async ({ to, fullName, otp, expiresInMinutes 
   });
 };
 
-module.exports = { sendOtpEmail, sendForgotPasswordOtpEmail };
+module.exports = { sendOtpEmail, sendForgotPasswordOtpEmail, escapeHtml };

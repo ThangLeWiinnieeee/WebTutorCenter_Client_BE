@@ -9,6 +9,12 @@ const findLatestActiveByEmailAndType = async (email, type) => {
   return await Otp.findOne({ email, type, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 });
 };
 
+// Tăng số lần nhập sai (nguyên tử qua $inc) và trả về số lần sau khi tăng.
+const incrementAttempts = async (otpId) => {
+  const doc = await Otp.findByIdAndUpdate(otpId, { $inc: { attempts: 1 } }, { new: true });
+  return doc ? doc.attempts : Infinity;
+};
+
 const deleteByEmailAndType = async (email, type) => {
   return await Otp.deleteMany({ email, type });
 };
@@ -21,6 +27,7 @@ const deleteByEmail = async (email) => {
 module.exports = {
   create,
   findLatestActiveByEmailAndType,
+  incrementAttempts,
   deleteByEmailAndType,
   deleteByEmail,
 };
