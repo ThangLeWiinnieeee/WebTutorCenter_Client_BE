@@ -5,6 +5,7 @@ const cookieParser = require("cookie-parser");
 
 const routes = require("./src/routes/index");
 const errorMiddleware = require("./src/middlewares/error.middleware");
+const securityHeaders = require("./src/middlewares/securityHeaders.middleware");
 const corsOptions = require("./src/configs/cors");
 
 const app = express();
@@ -19,6 +20,7 @@ if (process.env.NODE_ENV === "production") {
 // với thân rỗng; axios coi 200-304 là thành công nhưng `response.data` rỗng -> lỗi parse / mất user.
 app.set("etag", false);
 
+app.use(securityHeaders);
 app.use(cors(corsOptions));
 app.use(morgan("dev"));
 app.use(express.json());

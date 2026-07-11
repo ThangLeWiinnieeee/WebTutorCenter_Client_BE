@@ -3,7 +3,7 @@ const otpRepository = require("../repositories/otp.repository");
 const pendingRegistrationRepository = require("../repositories/pendingRegistration.repository");
 const { hashPassword, comparePassword } = require("../utils/hash");
 const { generateAccessToken, generateRefreshToken, verifyRefreshToken, generateResetToken, verifyResetToken } = require("../utils/token");
-const { generateOtp, getOtpExpiry, isResendTooSoon, getResendWaitSeconds, OTP_EXPIRES_MINUTES } = require("../utils/otp");
+const { generateOtp, getOtpExpiry, isResendTooSoon, getResendWaitSeconds, OTP_EXPIRES_MINUTES, MAX_OTP_ATTEMPTS } = require("../utils/otp");
 const { sendOtpEmail, sendForgotPasswordOtpEmail } = require("../utils/email");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
@@ -22,6 +22,18 @@ const _issueTokens = async (user) => {
   const refreshToken = generateRefreshToken(payload);
   await userRepository.updateRefreshToken(user._id, refreshToken);
   return { accessToken, refreshToken };
+};
+
+// Kiểm tra OTP nhập vào; sai thì đếm số lần, vượt MAX_OTP_ATTEMPTS thì vô hiệu OTP (chống brute-force).
+const _assertOtpMatches = async (otpDoc, otp, { email, type }) => {
+  if (otpDoc.otp === otp) return;
+
+  const attempts = await otpRepository.incrementAttempts(otpDoc._id);
+  if (attempts >= MAX_OTP_ATTEMPTS) {
+    await otpRepository.deleteByEmailAndType(email, type);
+    throw new AppError(MESSAGE.OTP_TOO_MANY_ATTEMPTS, HTTP_STATUS.TOO_MANY_REQUESTS);
+  }
+  throw new AppError(MESSAGE.OTP_INVALID, HTTP_STATUS.BAD_REQUEST);
 };
 
 const _createAndSendOtp = async ({ email, fullName, type }) => {
@@ -100,9 +112,7 @@ const verifyOtp = async ({ email, otp, type = OTP_TYPE.REGISTER }) => {
     throw new AppError(MESSAGE.OTP_EXPIRED, HTTP_STATUS.BAD_REQUEST);
   }
 
-  if (otpDoc.otp !== otp) {
-    throw new AppError(MESSAGE.OTP_INVALID, HTTP_STATUS.BAD_REQUEST);
-  }
+  await _assertOtpMatches(otpDoc, otp, { email, type });
 
   // OTP hợp lệ → giờ mới ghi tài khoản vào DB (đã kích hoạt sẵn)
   const user = await userRepository.create({
@@ -192,9 +202,7 @@ const verifyForgotPasswordOtp = async ({ email, otp }) => {
     throw new AppError(MESSAGE.OTP_EXPIRED, HTTP_STATUS.BAD_REQUEST);
   }
 
-  if (otpDoc.otp !== otp) {
-    throw new AppError(MESSAGE.OTP_INVALID, HTTP_STATUS.BAD_REQUEST);
-  }
+  await _assertOtpMatches(otpDoc, otp, { email, type: OTP_TYPE.FORGOT_PASSWORD });
 
   // OTP hợp lệ → xóa và cấp resetToken
   await otpRepository.deleteByEmailAndType(email, OTP_TYPE.FORGOT_PASSWORD);

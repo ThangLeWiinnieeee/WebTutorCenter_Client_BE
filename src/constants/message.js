@@ -28,6 +28,8 @@ const MESSAGE = {
   OTP_EXPIRED: "Mã OTP đã hết hạn, vui lòng yêu cầu mã mới",
   OTP_ALREADY_VERIFIED: "Email này đã được xác thực",
   OTP_RESEND_TOO_SOON: "Vui lòng chờ trước khi yêu cầu gửi lại mã OTP",
+  OTP_TOO_MANY_ATTEMPTS: "Bạn đã nhập sai mã OTP quá nhiều lần, vui lòng yêu cầu mã mới",
+  OTP_RATE_LIMITED: "Bạn thao tác OTP quá nhiều lần, vui lòng thử lại sau ít phút",
   REGISTRATION_NOT_FOUND: "Phiên đăng ký không tồn tại hoặc đã hết hạn, vui lòng đăng ký lại",
 
   // Forgot password
@@ -47,6 +49,7 @@ const MESSAGE = {
   // Validation
   VALIDATION_ERROR: "Dữ liệu đầu vào không hợp lệ",
   QUERY_VALIDATION_ERROR: "Bộ lọc không hợp lệ",
+  INPUT_TOO_DEEP: "Dữ liệu đầu vào lồng quá sâu",
 
   // Tutor
   TUTOR_REGISTER_SUCCESS: "Đăng ký làm gia sư thành công, vui lòng chờ phê duyệt",
@@ -275,6 +278,7 @@ const MESSAGE = {
 
   // Auth (bổ sung)
   ACCOUNT_DEACTIVATED: "Tài khoản của bạn đã bị vô hiệu hóa",
+  LOGIN_RATE_LIMITED: "Bạn đã đăng nhập sai quá nhiều lần, vui lòng thử lại sau ít phút.",
 
   // Notification content — nội dung thông báo tĩnh
   NOTIF_TUTOR_PENDING: "Hồ sơ gia sư của bạn đang chờ xét duyệt. Chúng tôi sẽ thông báo khi có kết quả.",

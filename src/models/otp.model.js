@@ -20,6 +20,11 @@ const otpSchema = new mongoose.Schema(
       enum: Object.values(OTP_TYPE),
       required: true,
     },
+    // Số lần nhập sai OTP; vượt ngưỡng thì OTP bị vô hiệu (chống brute-force). Mặc định 0 → an toàn với doc cũ.
+    attempts: {
+      type: Number,
+      default: 0,
+    },
     expiresAt: {
       type: Date,
       required: true,

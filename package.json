@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test": "node --test",
     "seed:users": "node -r ./scripts/_atlasDns.js scripts/seedDemoData.js users",
     "seed:tutors": "node -r ./scripts/_atlasDns.js scripts/seedDemoData.js tutors",
     "seed:schools": "node -r ./scripts/_atlasDns.js scripts/seedSchools.js",
