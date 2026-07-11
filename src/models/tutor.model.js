@@ -139,6 +139,16 @@ const tutorSchema = new mongoose.Schema(
         message: "Tối đa 5 ảnh bằng cấp",
       },
     },
+    // Ảnh bằng cấp CÔNG KHAI (tùy chọn, tối đa 5) — gia sư chủ động cho mọi người xem ở
+    // trang chi tiết & hồ sơ. KHÁC certificateImages (ảnh xác thực, riêng tư). Không bắt buộc.
+    publicCertificateImages: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (arr) => !Array.isArray(arr) || arr.length <= 5,
+        message: "Tối đa 5 ảnh bằng cấp công khai",
+      },
+    },
     status: {
       type: String,
       enum: Object.values(TUTOR_STATUS),
