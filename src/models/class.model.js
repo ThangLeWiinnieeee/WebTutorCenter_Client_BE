@@ -184,6 +184,12 @@ const classSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Đã gửi nhắc "chưa chọn gia sư, lớp sắp bắt đầu" cho người đăng (gửi 1 lần).
+    // null = chưa nhắc; job classLifecycle set khi còn <= 2 ngày tới ngày bắt đầu mà chưa chọn.
+    selectionReminderSentAt: {
+      type: Date,
+      default: null,
+    },
     // Xóa mềm: bài đăng vào thùng rác (ẩn khỏi mọi danh sách) thay vì xóa hẳn
     deletedAt: {
       type: Date,

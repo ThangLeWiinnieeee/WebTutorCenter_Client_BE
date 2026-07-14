@@ -6,6 +6,7 @@ const classRepository = require("../repositories/class.repository");
 const tutorRepository = require("../repositories/tutor.repository");
 const userRepository = require("../repositories/user.repository");
 const classApplicationRepository = require("../repositories/class.application.repository");
+const classViewRepository = require("../repositories/class.view.repository");
 const reviewRepository = require("../repositories/review.repository");
 const OCCUPATION_STATUS = require("../constants/occupationStatus");
 const { ClassMapper, ClassApplicationMapper } = require("../mappers");
@@ -21,7 +22,7 @@ const {
   CLASS_APPLICATION_STATUS,
   CLASS_APPLICATION_ORIGIN,
 } = require("../constants/classApplication");
-const { TUTOR_STATUS } = require("../constants/tutor");
+const { TUTOR_STATUS, SUBJECT_AFFINITY } = require("../constants/tutor");
 const { buildPagination } = require("../utils/pagination");
 const { generateUniqueCode } = require("../utils/code");
 
@@ -119,7 +120,22 @@ const calculateFee = (payload, configDoc) => {
   return { feePerSession, feePerMonth };
 };
 
+// Ngày bắt đầu buổi học phải cách hôm nay tối thiểu 2 ngày (không nhận hôm nay/ngày mai),
+// để người đăng có thời gian tìm & chọn gia sư trước khi lớp bắt đầu. So sánh theo mốc đầu
+// ngày UTC (startDate client gửi là chuỗi "yyyy-mm-dd" → đầu ngày UTC) nên không phụ thuộc giờ.
+const MIN_START_LEAD_DAYS = 2;
+const ensureStartDateLeadTime = (startDate) => {
+  const picked = new Date(startDate);
+  const minStart = new Date();
+  minStart.setUTCHours(0, 0, 0, 0);
+  minStart.setUTCDate(minStart.getUTCDate() + MIN_START_LEAD_DAYS);
+  if (Number.isNaN(picked.getTime()) || picked.getTime() < minStart.getTime()) {
+    throw new AppError(MESSAGE.CLASS_START_DATE_TOO_SOON, HTTP_STATUS.BAD_REQUEST);
+  }
+};
+
 const buildClassData = async (payload, userId) => {
+  ensureStartDateLeadTime(payload.startDate);
   const [province, district] = await Promise.all([
     locationRepository.findProvinceByCode(payload.provinceCode),
     locationRepository.findDistrictByCode(payload.districtCode),
@@ -421,6 +437,19 @@ const getClassFeedForTutor = async (userId, query = {}) => {
   const subjectFilter = query.subject && subjects.includes(query.subject) ? query.subject : null;
   const filterSubjects = subjectFilter ? [subjectFilter] : subjects;
 
+  // Lọc/search theo môn = tín hiệu quan tâm → cộng điểm. Chống spam: chỉ tính nếu môn này chưa
+  // được tương tác trong FILTER_THROTTLE_MS gần đây. Mốc `t` lưu theo TỪNG môn nên lọc qua lại
+  // giữa các môn vẫn giữ nguyên cửa sổ 60s của mỗi môn. Best-effort, không chặn luồng đọc feed.
+  if (subjectFilter) {
+    const entry = tutor.subjectAffinity?.get?.(subjectFilter);
+    const throttled = entry && Date.now() - entry.t < SUBJECT_AFFINITY.FILTER_THROTTLE_MS;
+    if (!throttled) {
+      tutorRepository
+        .incrementSubjectAffinity(userId, subjectFilter, SUBJECT_AFFINITY.WEIGHT.FILTER)
+        .catch(() => {});
+    }
+  }
+
   const baseCriteria = { genderPrefs, levelPrefs, provinceCode };
 
   // Ẩn các bài đã "khóa" (đã chọn/đã ghép) và các bài chính gia sư này đã ứng tuyển
@@ -431,8 +460,13 @@ const getClassFeedForTutor = async (userId, query = {}) => {
   ]);
   const excludeIds = [...new Set([...lockedIds, ...myAppliedIds].map(String))];
   const since = new Date(Date.now() - FEED_NEW_WINDOW_MS);
+  // Điểm quan tâm theo môn (đã suy giảm theo thời gian) → đẩy môn tương tác nhiều & gần đây lên đầu feed
+  const affinity = tutorRepository.decayAffinityMap(tutor.subjectAffinity);
   const [{ classes, totalItems }, newCount] = await Promise.all([
-    classRepository.findByFeedCriteria({ ...baseCriteria, subjects: filterSubjects }, { page, limit, excludeIds }),
+    classRepository.findByFeedCriteria(
+      { ...baseCriteria, subjects: filterSubjects },
+      { page, limit, excludeIds, affinity },
+    ),
     classRepository.countByFeedCriteriaSince({ ...baseCriteria, subjects }, since, excludeIds),
   ]);
 
@@ -515,6 +549,8 @@ const updatePostedClass = async (classId, userId, payload) => {
     throw new AppError(MESSAGE.CLASS_EDIT_HAS_APPLICANTS, HTTP_STATUS.BAD_REQUEST);
   }
 
+  ensureStartDateLeadTime(payload.startDate);
+
   // Validate khu vực + tính lại học phí theo thông tin mới
   const [province, district] = await Promise.all([
     locationRepository.findProvinceByCode(payload.provinceCode),
@@ -581,6 +617,25 @@ const getClassById = async (id, user) => {
   }
   // Lớp đã có gia sư được chọn/ghép → chặn người ngoài mở chi tiết bằng URL trực tiếp
   await ensureCanViewLockedClass(classItem, user);
+
+  // Gia sư mở chi tiết → cộng điểm quan tâm với môn của lớp (feed cá nhân hóa). Chỉ tính LẦN
+  // XEM ĐẦU TIÊN mỗi lớp (recordFirstView) để mở đi mở lại cùng lớp không spam điểm. Best-effort:
+  // tín hiệu phụ, không được để nó làm hỏng việc xem chi tiết nếu ghi thất bại.
+  if (user?.role === "tutor" && classItem.subject) {
+    classViewRepository
+      .recordFirstView(user.id, classItem._id)
+      .then((isFirstView) => {
+        if (isFirstView) {
+          return tutorRepository.incrementSubjectAffinity(
+            user.id,
+            classItem.subject,
+            SUBJECT_AFFINITY.WEIGHT.VIEW,
+          );
+        }
+      })
+      .catch(() => {});
+  }
+
   const dto = await maskClassItem(classItem, user);
 
   // Người đăng (chủ bài) hoặc admin xem bài đã ghép → kèm thông tin + SĐT gia sư đã nhận lớp.

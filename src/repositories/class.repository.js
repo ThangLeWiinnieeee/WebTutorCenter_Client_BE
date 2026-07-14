@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const ClassModel = require("../models/class.model");
 const { CLASS_STATUS } = require("../constants/class");
 const { GENDER_OPTIONS } = require("../constants/tutor");
@@ -68,15 +69,35 @@ const findMany = async (filters = {}, options = {}) => {
 
 // Lấy các bài đăng tuyển gia sư khớp tiêu chí cá nhân hóa của gia sư
 // (môn + giới tính + trình độ + khu vực). Xem buildFeedMatchFilter.
+// options.affinity: { [tên môn]: điểm } — điểm quan tâm của gia sư theo môn. Feed sắp theo
+// điểm này (cao → thấp) rồi tới bài mới nhất, để môn gia sư tương tác nhiều nổi lên đầu.
+// Dùng aggregate (thay find) để gán điểm động rồi sort TRƯỚC khi phân trang → thứ tự & trang đúng.
+// ponytail: sort chạy trên field tính động (_affinity) nên là in-memory sort trên tập đã lọc;
+// đủ ở quy mô hiện tại, cân nhắc precompute nếu số bài đăng lên rất lớn.
 const findByFeedCriteria = async (criteria = {}, options = {}) => {
   const page = options.page || 1;
   const limit = options.limit || 10;
   const skip = (page - 1) * limit;
   const filters = buildFeedMatchFilter(criteria);
-  if (options.excludeIds?.length) filters._id = { $nin: options.excludeIds };
+  // $match trong aggregate KHÔNG tự cast string → ObjectId như find → phải tự chuyển excludeIds
+  if (options.excludeIds?.length) {
+    filters._id = { $nin: options.excludeIds.map((id) => new mongoose.Types.ObjectId(id)) };
+  }
+
+  const branches = Object.entries(options.affinity || {})
+    .filter(([, score]) => Number(score) > 0)
+    .map(([subject, score]) => ({ case: { $eq: ["$subject", subject] }, then: Number(score) }));
+  const affinityExpr = branches.length ? { $switch: { branches, default: 0 } } : 0;
 
   const [classes, totalItems] = await Promise.all([
-    ClassModel.find(filters).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    ClassModel.aggregate([
+      { $match: filters },
+      { $addFields: { _affinity: affinityExpr } },
+      { $sort: { _affinity: -1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { _affinity: 0 } },
+    ]),
     ClassModel.countDocuments(filters),
   ]);
 
@@ -108,6 +129,20 @@ const findExpirableClasses = async (now, excludeIds = []) => {
     ...NOT_DELETED,
     ...VISIBLE_STATUS,
     startDate: { $lte: now },
+  };
+  if (excludeIds.length) filter._id = { $nin: excludeIds };
+  return await ClassModel.find(filter).lean();
+};
+
+// Bài đăng cần nhắc "chưa chọn gia sư": còn đang mở, sắp bắt đầu (trong khoảng (now, deadline]),
+// chưa từng được nhắc, và KHÔNG nằm trong excludeIds (lớp người đăng đã chọn gia sư/đã ghép).
+// { selectionReminderSentAt: null } cũng khớp document cũ chưa có field → không cần backfill.
+const findSelectionReminderDueClasses = async (now, deadline, excludeIds = []) => {
+  const filter = {
+    ...NOT_DELETED,
+    status: CLASS_STATUS.OPEN,
+    selectionReminderSentAt: null,
+    startDate: { $gt: now, $lte: deadline },
   };
   if (excludeIds.length) filter._id = { $nin: excludeIds };
   return await ClassModel.find(filter).lean();
@@ -223,6 +258,7 @@ module.exports = {
   updateStatus,
   update,
   findExpirableClasses,
+  findSelectionReminderDueClasses,
   findByCreatedBy,
   findManyForAdmin,
   findByIdPopulated,

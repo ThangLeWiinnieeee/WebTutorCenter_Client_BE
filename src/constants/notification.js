@@ -19,6 +19,8 @@ const NOTIFICATION_TYPES = {
   // Vòng đời bài đăng (gửi cho người đăng)
   CLASS_MATCHED: "CLASS_MATCHED",
   CLASS_EXPIRED: "CLASS_EXPIRED",
+  // Nhắc người đăng chọn gia sư gấp khi lớp sắp bắt đầu (<= 2 ngày) mà chưa chọn ai
+  CLASS_SELECTION_REMINDER: "CLASS_SELECTION_REMINDER",
   // Hoàn thành lớp → tặng mã giảm giá (gửi cho cả người đăng và gia sư)
   CLASS_COMPLETED_REWARD: "CLASS_COMPLETED_REWARD",
   // Gia sư nhận được đánh giá mới từ người đăng (sau khi lớp hoàn thành)

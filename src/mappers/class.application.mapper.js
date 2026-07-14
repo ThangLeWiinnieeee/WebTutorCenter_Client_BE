@@ -46,6 +46,8 @@ class ClassApplicationMapper {
       },
       tutor: {
         id: tutor._id,
+        // userId (tài khoản người dùng) để admin mở hội thoại chat với gia sư
+        userId: tutorUser._id ?? null,
         fullName: tutorUser.fullName ?? null,
         email: tutorUser.email ?? null,
         avatar: tutorUser.avatar ?? null,

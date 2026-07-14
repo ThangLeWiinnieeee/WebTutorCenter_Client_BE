@@ -164,6 +164,8 @@ const MESSAGE = {
   PRICING_CONFIG_MISSING: "Chưa cấu hình học phí, vui lòng chạy seed pricing",
   CLASS_NOT_FOUND: "Không tìm thấy lớp mới",
   INVALID_AREA: "Khu vực tỉnh/quận không hợp lệ",
+  CLASS_START_DATE_TOO_SOON:
+    "Ngày bắt đầu buổi học phải cách hôm nay ít nhất 2 ngày (không nhận hôm nay hoặc ngày mai).",
   CLASS_UPDATE_SUCCESS: "Cập nhật bài đăng thành công",
   CLASS_DELETE_SUCCESS: "Đã xóa bài đăng",
   CLASS_COMPLETE_SUCCESS: "Đã xác nhận hoàn thành lớp",

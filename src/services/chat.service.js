@@ -1,8 +1,10 @@
 const conversationRepository = require("../repositories/conversation.repository");
 const messageRepository = require("../repositories/message.repository");
 const userRepository = require("../repositories/user.repository");
+const tutorRepository = require("../repositories/tutor.repository");
+const classRepository = require("../repositories/class.repository");
 const User = require("../models/user.model");
-const { CHAT_ROLES } = require("../constants/chat");
+const { CHAT_ROLES, CHAT_CARD_KINDS } = require("../constants/chat");
 const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
@@ -160,6 +162,33 @@ const getAdminConversationMessages = async (conversationId, query = {}) => {
   };
 };
 
+// Cập nhật hội thoại + phát realtime cho một tin nhắn admin vừa tạo (text/ảnh/thẻ).
+const finalizeAdminMessage = async (conversation, message, preview) => {
+  // Admin gửi → gia sư có thêm 1 tin chưa đọc; phía admin xem như đã đọc.
+  const updated = await conversationRepository.updateById(conversation._id, {
+    lastMessage: preview,
+    lastMessageAt: message.createdAt,
+    lastSenderRole: CHAT_ROLES.ADMIN,
+    adminUnread: 0,
+    $inc: { tutorUnread: 1 },
+  });
+
+  const messageDTO = MessageMapper.toDTO(message);
+  const tutorUserId = extractId(updated.tutorUserId);
+  // Realtime: gửi cho gia sư + đồng bộ danh sách cho các admin khác.
+  emitToUser(tutorUserId, CHAT_EVENTS.MESSAGE, {
+    conversationId: conversation._id,
+    message: messageDTO,
+    unreadCount: updated.tutorUnread,
+  });
+  emitToAdmins(CHAT_EVENTS.MESSAGE, {
+    conversation: ConversationMapper.toDTO(updated, CHAT_ROLES.ADMIN),
+    message: messageDTO,
+  });
+
+  return messageDTO;
+};
+
 const sendMessageAsAdmin = async (conversationId, adminUserId, input) => {
   const { text, image } = normalizeMessageInput(input);
   const conversation = await conversationRepository.findById(conversationId);
@@ -173,29 +202,52 @@ const sendMessageAsAdmin = async (conversationId, adminUserId, input) => {
     imageUrl: image,
   });
 
-  // Admin gửi → gia sư có thêm 1 tin chưa đọc; phía admin xem như đã đọc.
-  const updated = await conversationRepository.updateById(conversationId, {
-    lastMessage: buildPreview(text, image),
-    lastMessageAt: message.createdAt,
-    lastSenderRole: CHAT_ROLES.ADMIN,
-    adminUnread: 0,
-    $inc: { tutorUnread: 1 },
-  });
+  return finalizeAdminMessage(conversation, message, buildPreview(text, image));
+};
 
-  const messageDTO = MessageMapper.toDTO(message);
-  const tutorUserId = extractId(updated.tutorUserId);
-  // Realtime: gửi cho gia sư + đồng bộ danh sách cho các admin khác.
-  emitToUser(tutorUserId, CHAT_EVENTS.MESSAGE, {
+// Dựng thẻ thông tin từ DB — chỉ lấy dữ liệu công khai (họ tên/avatar gia sư, mã +
+// môn bài đăng). Không đưa SĐT/giấy tờ/thông tin nhạy cảm vào thẻ.
+const buildCard = async (kind, refId) => {
+  if (kind === CHAT_CARD_KINDS.TUTOR) {
+    const tutor = await tutorRepository.findById(refId);
+    if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    const u = tutor.userId;
+    return {
+      kind,
+      refId: tutor._id,
+      title: u?.fullName || "Gia sư",
+      subtitle: tutor.subjects?.[0] || null,
+      image: u?.avatar || null,
+    };
+  }
+  const classItem = await classRepository.findById(refId);
+  if (!classItem) throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+  return {
+    kind,
+    refId: classItem._id,
+    title: classItem.classCode,
+    subtitle: classItem.subject || null,
+    image: null,
+  };
+};
+
+// Admin đính kèm thẻ gia sư/bài đăng vào hội thoại (thay vì gõ text).
+const sendCardAsAdmin = async (conversationId, adminUserId, { kind, refId }) => {
+  const conversation = await conversationRepository.findById(conversationId);
+  if (!conversation) throw new AppError(MESSAGE.CHAT_CONVERSATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+
+  const card = await buildCard(kind, refId);
+  const message = await messageRepository.create({
     conversationId,
-    message: messageDTO,
-    unreadCount: updated.tutorUnread,
-  });
-  emitToAdmins(CHAT_EVENTS.MESSAGE, {
-    conversation: ConversationMapper.toDTO(updated, CHAT_ROLES.ADMIN),
-    message: messageDTO,
+    senderId: adminUserId,
+    senderRole: CHAT_ROLES.ADMIN,
+    content: "",
+    imageUrl: null,
+    card,
   });
 
-  return messageDTO;
+  const preview = kind === CHAT_CARD_KINDS.TUTOR ? `[Gia sư] ${card.title}` : `[Bài đăng] ${card.title}`;
+  return finalizeAdminMessage(conversation, message, preview);
 };
 
 const markAdminRead = async (conversationId) => {
@@ -234,6 +286,7 @@ module.exports = {
   getAdminConversations,
   getAdminConversationMessages,
   sendMessageAsAdmin,
+  sendCardAsAdmin,
   markAdminRead,
   getAdminUnreadTotal,
   startConversationWithTutor,
