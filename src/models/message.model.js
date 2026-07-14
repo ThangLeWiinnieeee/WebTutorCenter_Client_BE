@@ -1,5 +1,18 @@
 const mongoose = require("mongoose");
-const { CHAT_ROLES } = require("../constants/chat");
+const { CHAT_ROLES, CHAT_CARD_KINDS } = require("../constants/chat");
+
+// Thẻ thông tin đính kèm (do admin gửi): chỉ chứa dữ liệu công khai + id để mở trang
+// chi tiết. Không lưu thông tin nhạy cảm (SĐT, giấy tờ...) — xem chat.service.buildCard.
+const cardSchema = new mongoose.Schema(
+  {
+    kind: { type: String, enum: Object.values(CHAT_CARD_KINDS), required: true },
+    refId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    title: { type: String, required: true, trim: true },
+    subtitle: { type: String, default: null, trim: true },
+    image: { type: String, default: null },
+  },
+  { _id: false }
+);
 
 const messageSchema = new mongoose.Schema(
   {
@@ -32,6 +45,11 @@ const messageSchema = new mongoose.Schema(
     // URL ảnh đính kèm (Cloudinary), null nếu là tin nhắn text thuần.
     imageUrl: {
       type: String,
+      default: null,
+    },
+    // Thẻ thông tin gia sư/bài đăng do admin đính kèm, null nếu tin nhắn thường.
+    card: {
+      type: cardSchema,
       default: null,
     },
   },

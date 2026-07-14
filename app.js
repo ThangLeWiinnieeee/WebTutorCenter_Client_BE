@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const compression = require("compression");
 const cookieParser = require("cookie-parser");
 
 const routes = require("./src/routes/index");
@@ -22,6 +23,8 @@ app.set("etag", false);
 
 app.use(securityHeaders);
 app.use(cors(corsOptions));
+// Nén response (gzip) — JSON API (danh sách gia sư/lớp) giảm ~70-80% băng thông.
+app.use(compression());
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

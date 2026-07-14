@@ -1,7 +1,7 @@
 const { Message } = require("../models/message.model");
 
-const create = async ({ conversationId, senderId, senderRole, content, imageUrl = null }) => {
-  return Message.create({ conversationId, senderId, senderRole, content, imageUrl });
+const create = async ({ conversationId, senderId, senderRole, content, imageUrl = null, card = null }) => {
+  return Message.create({ conversationId, senderId, senderRole, content, imageUrl, card });
 };
 
 // Một trang tin nhắn của hội thoại. Lấy mới nhất trước rồi đảo lại để FE render

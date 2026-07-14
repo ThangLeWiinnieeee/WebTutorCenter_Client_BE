@@ -11,6 +11,15 @@ class MessageMapper {
       senderRole: message.senderRole,
       content: message.content,
       imageUrl: message.imageUrl || null,
+      card: message.card
+        ? {
+            kind: message.card.kind,
+            refId: message.card.refId,
+            title: message.card.title,
+            subtitle: message.card.subtitle || null,
+            image: message.card.image || null,
+          }
+        : null,
       createdAt: message.createdAt,
     };
   }

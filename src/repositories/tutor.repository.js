@@ -271,6 +271,47 @@ const findApprovedForReviewAdmin = async ({ page = 1, limit = 10, keyword = "" }
   return { items, totalItems };
 };
 
+// --- Điểm quan tâm theo môn với suy giảm theo thời gian (half-life) ---
+// Toàn bộ công thức decay gom ở đây để chỉ có MỘT nguồn: ghi (nextAffinityEntry) và đọc
+// (decayAffinityMap) dùng chung `decay()`.
+const { SUBJECT_AFFINITY } = require("../constants/tutor");
+
+// Điểm còn lại sau khi để `ageMs` mili giây trôi qua: cứ mỗi HALF_LIFE_MS thì giảm còn một nửa.
+const decay = (score, ageMs) =>
+  score * Math.pow(0.5, Math.max(0, ageMs) / SUBJECT_AFFINITY.HALF_LIFE_MS);
+
+// Trạng thái điểm mới sau một lần tương tác: suy giảm điểm cũ về thời điểm `now` rồi cộng
+// `weight`, chặn trần MAX_SCORE. prev = { s, t } hoặc null (chưa từng tương tác).
+const nextAffinityEntry = (prev, weight, now) => {
+  const decayed = prev ? decay(prev.s, now - prev.t) : 0;
+  return { s: Math.min(SUBJECT_AFFINITY.MAX_SCORE, decayed + weight), t: now };
+};
+
+// Đọc điểm quan tâm hiện tại theo môn (đã suy giảm về `now`), bỏ các môn dưới ngưỡng MIN_SCORE.
+// Nhận Map (document Mongoose) hoặc object thường (lean); trả { [tên môn]: điểm }.
+const decayAffinityMap = (subjectAffinity, now = Date.now()) => {
+  const entries =
+    subjectAffinity instanceof Map ? subjectAffinity.entries() : Object.entries(subjectAffinity || {});
+  const result = {};
+  for (const [subject, entry] of entries) {
+    if (!entry) continue;
+    const score = decay(entry.s, now - entry.t);
+    if (score >= SUBJECT_AFFINITY.MIN_SCORE) result[subject] = score;
+  }
+  return result;
+};
+
+// Ghi nhận một lần tương tác của gia sư với một môn (đọc-sửa-ghi để suy giảm điểm cũ trước khi cộng).
+// Bỏ qua khi thiếu tham số hoặc tên môn chứa "." (không hợp lệ làm key trong document Mongo).
+// ponytail: hai lần tương tác đồng thời có thể mất 1 lượt cộng (race) — chấp nhận với dữ liệu telemetry.
+const incrementSubjectAffinity = async (userId, subject, weight, now = Date.now()) => {
+  if (!userId || !subject || !weight || subject.includes(".")) return null;
+  const path = `subjectAffinity.${subject}`;
+  const doc = await Tutor.findOne({ userId }, { [path]: 1 }).lean();
+  const prev = doc?.subjectAffinity?.[subject] || null;
+  return await Tutor.updateOne({ userId }, { $set: { [path]: nextAffinityEntry(prev, weight, now) } });
+};
+
 // Xóa hồ sơ gia sư của một người dùng (xóa vĩnh viễn tài khoản)
 const deleteByUserId = async (userId) => {
   return await Tutor.findOneAndDelete({ userId });
@@ -290,5 +331,8 @@ module.exports = {
   findTopTutors,
   findNewTutors,
   searchTutors,
+  incrementSubjectAffinity,
+  decayAffinityMap,
+  nextAffinityEntry,
   deleteByUserId,
 };

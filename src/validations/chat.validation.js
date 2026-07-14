@@ -12,6 +12,18 @@ const sendMessageSchema = Joi.object({
   }),
 });
 
+const sendCardSchema = Joi.object({
+  kind: Joi.string().valid("tutor", "class").required().messages({
+    "any.only": "Loại thẻ không hợp lệ",
+    "any.required": "Thiếu loại thẻ",
+  }),
+  refId: objectId.required().messages({
+    "string.empty": "Thiếu thông tin cần gửi",
+    "string.pattern.base": "Mã không hợp lệ",
+    "any.required": "Thiếu thông tin cần gửi",
+  }),
+});
+
 const startConversationSchema = Joi.object({
   tutorUserId: objectId.required().messages({
     "string.empty": "Thiếu thông tin gia sư",
@@ -35,6 +47,7 @@ module.exports = {
   validate,
   validateQuery,
   sendMessageSchema,
+  sendCardSchema,
   startConversationSchema,
   messagesQuerySchema,
   conversationsQuerySchema,

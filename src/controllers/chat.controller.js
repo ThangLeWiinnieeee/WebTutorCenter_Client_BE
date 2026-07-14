@@ -112,6 +112,22 @@ const sendConversationImageMessage = async (req, res, next) => {
   }
 };
 
+const sendConversationCard = async (req, res, next) => {
+  try {
+    const message = await chatService.sendCardAsAdmin(req.params.id, req.user.id, {
+      kind: req.body.kind,
+      refId: req.body.refId,
+    });
+    return successResponse(res, {
+      statusCode: HTTP_STATUS.CREATED,
+      message: MESSAGE.CHAT_MESSAGE_SENT,
+      data: { message },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const markConversationRead = async (req, res, next) => {
   try {
     await chatService.markAdminRead(req.params.id);
@@ -153,6 +169,7 @@ module.exports = {
   getConversationMessages,
   sendConversationMessage,
   sendConversationImageMessage,
+  sendConversationCard,
   markConversationRead,
   getAdminUnreadCount,
   startConversation,

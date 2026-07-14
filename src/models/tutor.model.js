@@ -195,6 +195,15 @@ const tutorSchema = new mongoose.Schema(
       min: [0, "Điểm đánh giá không thể âm"],
       max: [5, "Điểm đánh giá tối đa là 5"],
     },
+    // Mức độ quan tâm theo môn (tên môn → { s: điểm, t: mốc thời gian cập nhật ms }), cộng dồn
+    // có SUY GIẢM theo thời gian khi gia sư xem/ứng tuyển lớp của môn đó. Dùng để cá nhân hóa
+    // thứ tự feed (môn tương tác nhiều & gần đây lên đầu). Số key = số môn gia sư từng tương tác
+    // nên nhỏ. Mặc định rỗng → gia sư mới rơi về sort theo bài mới nhất. Xem constants SUBJECT_AFFINITY.
+    subjectAffinity: {
+      type: Map,
+      of: new mongoose.Schema({ s: Number, t: Number }, { _id: false }),
+      default: {},
+    },
   },
   {
     timestamps: true,
@@ -251,6 +260,14 @@ async function validateRejectionReasonOnUpdate(next) {
 }
 
 tutorSchema.pre("findOneAndUpdate", validateRejectionReasonOnUpdate);
+
+// Index cho query nóng nhất: tìm kiếm/lọc gia sư (searchTutors) và top gia sư uy tín
+// (findTrustedTutorIds) — trước đây collection chỉ có unique userId nên mọi filter đều
+// quét toàn bộ. Cả 2 luôn $match theo status trước, rồi lọc theo khu vực / lọc theo đánh giá.
+// ponytail: 2 index đủ cho các filter phổ biến; sort chạy trên field tính động (_reviewCount)
+// nên không dùng được index sort — chấp nhận in-memory sort tới khi số gia sư lên chục nghìn.
+tutorSchema.index({ status: 1, "teachingAreas.province": 1, "teachingAreas.districts": 1 });
+tutorSchema.index({ status: 1, reviewCount: -1, averageRating: -1 });
 
 const Tutor = mongoose.model("Tutor", tutorSchema);
 

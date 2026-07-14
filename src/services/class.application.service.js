@@ -1,7 +1,7 @@
 const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
-const { TUTOR_STATUS } = require("../constants/tutor");
+const { TUTOR_STATUS, SUBJECT_AFFINITY } = require("../constants/tutor");
 const ROLES = require("../constants/role");
 const { NOTIFICATION_TYPES, NOTIFICATION_AUDIENCE } = require("../constants/notification");
 const { CLASS_APPLICATION_STATUS, CLASS_APPLICATION_ORIGIN } = require("../constants/classApplication");
@@ -66,6 +66,12 @@ const applyForClass = async (userId, classId) => {
     tutorId: tutor._id,
     status: CLASS_APPLICATION_STATUS.PENDING,
   });
+
+  // Ứng tuyển = tín hiệu quan tâm mạnh nhất → cộng điểm affinity để feed đẩy môn này lên đầu.
+  // Best-effort: không để việc ghi tín hiệu làm hỏng luồng nhận lớp nếu thất bại.
+  tutorRepository
+    .incrementSubjectAffinity(userId, classItem.subject, SUBJECT_AFFINITY.WEIGHT.APPLY)
+    .catch(() => {});
 
   // Luồng mới: đơn ứng tuyển gửi tới NGƯỜI ĐĂNG (để họ chọn gia sư), không gửi thẳng admin.
   const tutorUser = await userRepository.findById(userId);

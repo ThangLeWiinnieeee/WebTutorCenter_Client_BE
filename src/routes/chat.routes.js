@@ -10,6 +10,7 @@ const {
   validate,
   validateQuery,
   sendMessageSchema,
+  sendCardSchema,
   startConversationSchema,
   messagesQuerySchema,
   conversationsQuerySchema,
@@ -83,6 +84,13 @@ router.post(
   roleMiddleware(ROLES.ADMIN),
   uploadChatImageMiddleware,
   chatController.sendConversationImageMessage
+);
+// Gửi thẻ thông tin gia sư/bài đăng (chỉ admin) — { kind: "tutor"|"class", refId }.
+router.post(
+  "/conversations/:id/card",
+  roleMiddleware(ROLES.ADMIN),
+  validate(sendCardSchema),
+  chatController.sendConversationCard
 );
 router.post(
   "/conversations/:id/read",
