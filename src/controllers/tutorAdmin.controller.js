@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
+// Lấy số liệu thống kê tổng quan gia sư cho admin
 const getDashboardStats = async (req, res, next) => {
   try {
     const stats = await tutorAdminService.getDashboardStats();
@@ -18,6 +19,7 @@ const getDashboardStats = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách gia sư chờ duyệt
 const getPendingTutors = async (req, res, next) => {
   try {
     const result = await tutorAdminService.getPendingTutors(req.query);
@@ -31,6 +33,7 @@ const getPendingTutors = async (req, res, next) => {
   }
 };
 
+// Duyệt hồ sơ gia sư
 const approveTutor = async (req, res, next) => {
   try {
     const tutor = await tutorAdminService.approveTutor(req.params.id);
@@ -44,6 +47,7 @@ const approveTutor = async (req, res, next) => {
   }
 };
 
+// Từ chối hồ sơ gia sư
 const rejectTutor = async (req, res, next) => {
   try {
     const tutor = await tutorAdminService.rejectTutor(req.params.id, req.body.rejectionReason);

@@ -3,6 +3,7 @@ const { errorResponse } = require("../utils/response");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 
+// Xác thực access token trong header và gắn thông tin người dùng vào req.user
 const authMiddleware = (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];
@@ -25,6 +26,7 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+// Xác thực token nếu có (không bắt buộc); token sai thì coi như khách
 const optionalAuthMiddleware = (req, res, next) => {
   try {
     const authHeader = req.headers["authorization"];

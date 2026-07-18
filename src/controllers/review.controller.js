@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 // ──────────────────────────── Người đăng / công khai ────────────────────────────
 
+// Tạo đánh giá mới cho gia sư
 const createReview = async (req, res, next) => {
   try {
     const data = await reviewService.createReview(req.user.id, req.body);
@@ -18,6 +19,7 @@ const createReview = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách đánh giá công khai của một gia sư
 const getTutorReviews = async (req, res, next) => {
   try {
     const data = await reviewService.getTutorReviews(req.params.tutorId, req.query);
@@ -45,6 +47,7 @@ const replyToReview = async (req, res, next) => {
 
 // ──────────────────────────── Admin ────────────────────────────
 
+// Lấy danh sách gia sư kèm thống kê đánh giá cho admin
 const getAdminReviewTutors = async (req, res, next) => {
   try {
     const data = await reviewService.getTutorsForAdmin(req.query);
@@ -57,6 +60,7 @@ const getAdminReviewTutors = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách đánh giá của một gia sư cho admin
 const getAdminTutorReviews = async (req, res, next) => {
   try {
     const data = await reviewService.getTutorReviewsForAdmin(req.params.tutorId, req.query);
@@ -69,6 +73,7 @@ const getAdminTutorReviews = async (req, res, next) => {
   }
 };
 
+// Xoá mềm một đánh giá
 const softDeleteReview = async (req, res, next) => {
   try {
     const result = await reviewService.softDeleteReview(req.params.id, req.user.id);

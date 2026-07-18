@@ -34,8 +34,7 @@ const SINGLE_DOCUMENT_FIELDS = [
   "studentCardBackImage",
 ];
 
-// Đã có giấy tờ chứng thực thì KHÔNG được sửa lại — chỉ được BỔ SUNG phần còn thiếu.
-// (Ngoại lệ duy nhất: bổ sung ảnh bằng cấp khi vừa chuyển sang "đã tốt nghiệp".)
+// Chặn sửa lại giấy tờ chứng thực đã có, chỉ cho bổ sung phần còn thiếu
 const assertDocumentsNotLocked = (changes, tutor) => {
   for (const field of SINGLE_DOCUMENT_FIELDS) {
     const incoming = changes[field];
@@ -54,8 +53,7 @@ const assertDocumentsNotLocked = (changes, tutor) => {
   }
 };
 
-// Khi yêu cầu có động tới hồ sơ chứng thực: kiểm tra ĐỦ bộ dựa trên kết quả sau khi áp
-// thay đổi (gộp hồ sơ hiện tại + thay đổi). Không tự xóa thẻ sinh viên khi tốt nghiệp.
+// Kiểm tra hồ sơ chứng thực đủ bộ theo tình trạng nghề nghiệp khi có thay đổi giấy tờ
 const validateDocuments = (changes, tutor, nextOccupation) => {
   const touchesDocs = DOCUMENT_FIELDS.some((f) => changes[f] !== undefined);
   if (!touchesDocs) return;
@@ -78,6 +76,7 @@ const validateDocuments = (changes, tutor, nextOccupation) => {
   }
 };
 
+// Lọc ra các field được phép đổi từ dữ liệu gửi lên
 const pickEditableChanges = (body = {}) => {
   const changes = {};
   for (const key of EDITABLE_FIELDS) {
@@ -86,8 +85,7 @@ const pickEditableChanges = (body = {}) => {
   return changes;
 };
 
-// Kiểm tra danh sách môn học hợp lệ: mảng không rỗng, không trùng, đều thuộc danh mục
-// đang bật trong DB (không phân biệt hoa/thường).
+// Chuẩn hoá và kiểm tra danh sách môn học (không rỗng, không trùng, thuộc danh mục đang bật)
 const normalizeSubjects = async (subjects) => {
   if (!Array.isArray(subjects) || subjects.length === 0) return null;
   const unique = [...new Set(subjects.map((s) => (typeof s === "string" ? s.trim() : s)))];
@@ -98,6 +96,7 @@ const normalizeSubjects = async (subjects) => {
   return unique;
 };
 
+// Gia sư gửi yêu cầu đổi thông tin hồ sơ (chờ admin duyệt)
 const requestChange = async (userId, body = {}) => {
   const tutor = await tutorRepository.findByUserId(userId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -183,6 +182,7 @@ const requestChange = async (userId, body = {}) => {
   return ProfileChangeRequestMapper.toDTO(populated);
 };
 
+// Lấy yêu cầu đổi hồ sơ đang chờ duyệt của gia sư (nếu có)
 const getMyPending = async (userId) => {
   const tutor = await tutorRepository.findByUserId(userId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

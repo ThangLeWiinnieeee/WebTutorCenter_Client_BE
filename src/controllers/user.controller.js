@@ -6,6 +6,7 @@ const HTTP_STATUS = require("../constants/status");
 
 const handleError = require("../utils/handleError");
 
+// Lấy thông tin tài khoản của người dùng hiện tại
 const getUserInfo = async (req, res, next) => {
   try {
     const user = await userService.getUserInfo(req.user.id);
@@ -19,6 +20,7 @@ const getUserInfo = async (req, res, next) => {
   }
 };
 
+// Tải lên và cập nhật ảnh đại diện
 const uploadAvatar = async (req, res, next) => {
   try {
     if (!req.file) {
@@ -36,6 +38,7 @@ const uploadAvatar = async (req, res, next) => {
   }
 };
 
+// Cập nhật thông tin cá nhân của người dùng
 const updateProfile = async (req, res, next) => {
   try {
     const user = await userService.updateProfile(req.user.id, req.body);

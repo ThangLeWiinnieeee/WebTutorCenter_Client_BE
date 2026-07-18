@@ -1,3 +1,4 @@
+// Đăng ký export lazy một validation (chỉ require khi được dùng)
 const defineLazyExport = (target, key, modulePath) => {
   Object.defineProperty(target, key, {
     enumerable: true,
@@ -18,5 +19,6 @@ defineLazyExport(validations, "trashAdminValidation", "./trashAdmin.validation")
 defineLazyExport(validations, "classApplicationAdminValidation", "./classApplicationAdmin.validation");
 defineLazyExport(validations, "cancellationAdminValidation", "./cancellationAdmin.validation");
 defineLazyExport(validations, "profileChangeAdminValidation", "./profileChangeAdmin.validation");
+defineLazyExport(validations, "paymentValidation", "./payment.validation");
 
 module.exports = validations;

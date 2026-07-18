@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
+// Gia sư ứng tuyển vào một lớp
 const applyForClass = async (req, res, next) => {
   try {
     const application = await classApplicationService.applyForClass(req.user.id, req.params.id);
@@ -18,6 +19,7 @@ const applyForClass = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách đơn ứng tuyển của gia sư hiện tại
 const getMyApplications = async (req, res, next) => {
   try {
     const result = await classApplicationService.getMyApplications(req.user.id, req.query);
@@ -63,6 +65,7 @@ const selectApplicant = async (req, res, next) => {
   }
 };
 
+// Huỷ đơn ứng tuyển (hoặc gửi yêu cầu huỷ nếu đã được chọn)
 const cancelApplication = async (req, res, next) => {
   try {
     const application = await classApplicationService.cancelApplication(
@@ -86,6 +89,7 @@ const cancelApplication = async (req, res, next) => {
 
 // ── Luồng mời gia sư trực tiếp (gia sư phản hồi lời mời) ──
 
+// Lấy danh sách lời mời dạy của gia sư hiện tại
 const getMyInvitations = async (req, res, next) => {
   try {
     const result = await classApplicationService.getMyInvitations(req.user.id, req.query);
@@ -99,6 +103,7 @@ const getMyInvitations = async (req, res, next) => {
   }
 };
 
+// Gia sư chấp nhận lời mời dạy
 const acceptInvitation = async (req, res, next) => {
   try {
     const application = await classApplicationService.acceptInvitation(
@@ -115,6 +120,7 @@ const acceptInvitation = async (req, res, next) => {
   }
 };
 
+// Gia sư từ chối lời mời dạy
 const declineInvitation = async (req, res, next) => {
   try {
     const application = await classApplicationService.declineInvitation(

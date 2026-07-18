@@ -4,11 +4,13 @@ const Review = require("../models/review.model");
 const REVIEWER_FIELDS = "fullName avatar";
 const TUTOR_USER_FIELDS = "fullName avatar";
 
+// Tạo một đánh giá mới
 const create = async (data) => {
   const doc = new Review(data);
   return await doc.save();
 };
 
+// Tìm một đánh giá theo id
 const findById = async (id) => Review.findById(id);
 
 // Đánh giá còn hiệu lực (chưa xóa mềm) của một lớp do một người đăng viết — chặn đánh giá trùng
@@ -67,8 +69,7 @@ const findReviewedClassIds = async (reviewerId, classIds = []) => {
   });
 };
 
-// Gia sư phản hồi đánh giá (chỉ khi chưa có phản hồi & chưa xóa mềm) — guard `reply: null`
-// đảm bảo nguyên tử để không phản hồi đúp khi có race condition. Trả null nếu không cập nhật được.
+// Gia sư phản hồi đánh giá (guard reply:null để không phản hồi đúp khi có race)
 const setReply = async (id, reply) =>
   Review.findOneAndUpdate(
     { _id: id, deletedAt: null, reply: null },

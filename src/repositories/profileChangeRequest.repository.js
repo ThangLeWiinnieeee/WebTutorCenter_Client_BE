@@ -3,11 +3,13 @@ const { PROFILE_CHANGE_STATUS } = require("../constants/profileChangeRequest");
 
 const POPULATE_USER = "fullName email avatar";
 
+// Tạo yêu cầu đổi hồ sơ mới
 const create = async (data) => {
   const doc = new ProfileChangeRequest(data);
   return await doc.save();
 };
 
+// Tìm yêu cầu đổi hồ sơ đang chờ duyệt của một gia sư
 const findPendingByTutorId = async (tutorId) => {
   return await ProfileChangeRequest.findOne({
     tutorId,
@@ -15,6 +17,7 @@ const findPendingByTutorId = async (tutorId) => {
   });
 };
 
+// Lấy chi tiết một yêu cầu đổi hồ sơ theo id
 const findById = async (id) => {
   return await ProfileChangeRequest.findById(id)
     .populate("userId", POPULATE_USER)
@@ -34,6 +37,7 @@ const findPage = async ({ status, page = 1, limit = 10 }) => {
     .limit(limit);
 };
 
+// Đếm số yêu cầu đổi hồ sơ theo từng trạng thái
 const countGrouped = async () => {
   const [pending, approved, rejected] = await Promise.all([
     ProfileChangeRequest.countDocuments({ status: PROFILE_CHANGE_STATUS.PENDING }),
@@ -43,6 +47,7 @@ const countGrouped = async () => {
   return { pending, approved, rejected };
 };
 
+// Cập nhật một yêu cầu đổi hồ sơ
 const update = async (id, updateData) => {
   return await ProfileChangeRequest.findByIdAndUpdate(id, updateData, { new: true })
     .populate("userId", POPULATE_USER)

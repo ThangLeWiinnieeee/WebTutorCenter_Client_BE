@@ -13,6 +13,7 @@ const OCCUPATION_STATUS = require("../constants/occupationStatus");
 const { ProfileChangeRequestMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 
+// Lấy danh sách yêu cầu đổi hồ sơ kèm thống kê theo trạng thái
 const getProfileChangeRequests = async (query = {}) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -38,6 +39,7 @@ const getProfileChangeRequests = async (query = {}) => {
   };
 };
 
+// Duyệt yêu cầu đổi hồ sơ (áp các thay đổi trong whitelist + thông báo gia sư)
 const approveProfileChange = async (requestId, adminUserId) => {
   const request = await profileChangeRequestRepository.findById(requestId);
   if (!request) throw new AppError(MESSAGE.PROFILE_CHANGE_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -83,6 +85,7 @@ const approveProfileChange = async (requestId, adminUserId) => {
   return ProfileChangeRequestMapper.toDTO(updated);
 };
 
+// Từ chối yêu cầu đổi hồ sơ (kèm lý do + thông báo gia sư)
 const rejectProfileChange = async (requestId, rejectionReason, adminUserId) => {
   const request = await profileChangeRequestRepository.findById(requestId);
   if (!request) throw new AppError(MESSAGE.PROFILE_CHANGE_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

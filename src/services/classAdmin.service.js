@@ -7,6 +7,7 @@ const { ClassMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 const { diacriticInsensitiveRegex } = require("../utils/search");
 
+// Dựng bộ lọc tìm kiếm lớp cho admin (mã lớp/tiêu đề/điện thoại + môn học)
 const buildClassFilters = ({ keyword, subject }) => {
   const filters = {};
   if (keyword) {
@@ -25,6 +26,7 @@ const attachApplicationCounts = async (dtos) => {
   return dtos.map((dto) => ({ ...dto, applicationsCount: countMap[String(dto.id)] || 0 }));
 };
 
+// Lấy danh sách lớp cho admin (lọc, phân trang, kèm số đơn nhận lớp)
 const getAdminClasses = async (query = {}) => {
   const page = query.page || 1;
   const limit = query.limit || 10;
@@ -37,6 +39,7 @@ const getAdminClasses = async (query = {}) => {
   };
 };
 
+// Lấy chi tiết một lớp kèm số đơn nhận lớp
 const getAdminClassDetail = async (classId) => {
   const classItem = await classRepository.findByIdPopulated(classId);
   if (!classItem) throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

@@ -23,6 +23,7 @@ class ReviewMapper {
     };
   }
 
+  // Chuyển danh sách đánh giá thành danh sách DTO công khai
   static toDTOs(reviews) {
     if (!Array.isArray(reviews)) return [];
     return reviews.map((r) => this.toDTO(r));
@@ -46,6 +47,7 @@ class ReviewMapper {
     };
   }
 
+  // Chuyển danh sách đánh giá thành danh sách DTO cho admin
   static toAdminDTOs(reviews) {
     if (!Array.isArray(reviews)) return [];
     return reviews.map((r) => this.toAdminDTO(r));
@@ -69,6 +71,7 @@ class ReviewMapper {
     };
   }
 
+  // Chuyển danh sách đánh giá thành danh sách DTO thùng rác
   static toTrashDTOs(reviews) {
     if (!Array.isArray(reviews)) return [];
     return reviews.map((r) => this.toTrashDTO(r));

@@ -5,12 +5,13 @@ const MESSAGE = require("../constants/message");
 const { NotificationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 
-// audience mặc định do model xử lý (CLIENT) khi không truyền.
+// Tạo một thông báo mới cho người dùng (audience mặc định là CLIENT)
 const createNotification = async ({ userId, type, message, audience }) => {
   const notification = await notificationRepository.create({ userId, type, message, audience });
   return NotificationMapper.toDTO(notification);
 };
 
+// Lấy danh sách thông báo của người dùng kèm phân trang và số chưa đọc
 const getUserNotifications = async (userId, query = {}) => {
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
@@ -29,6 +30,7 @@ const getUserNotifications = async (userId, query = {}) => {
   };
 };
 
+// Đánh dấu một thông báo là đã đọc
 const markAsRead = async (notificationId, userId) => {
   const notification = await notificationRepository.markAsRead(notificationId, userId);
   if (!notification) {
@@ -37,6 +39,7 @@ const markAsRead = async (notificationId, userId) => {
   return NotificationMapper.toDTO(notification);
 };
 
+// Đánh dấu tất cả thông báo là đã đọc
 const markAllAsRead = async (userId, audience) => {
   await notificationRepository.markAllAsRead(userId, audience);
 };

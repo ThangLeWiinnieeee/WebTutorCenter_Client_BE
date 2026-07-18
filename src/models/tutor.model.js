@@ -227,6 +227,7 @@ tutorSchema.pre("save", function (next) {
   return next(err || undefined);
 });
 
+// Validate cặp (status, rejectionReason) khi cập nhật qua query
 async function validateRejectionReasonOnUpdate(next) {
   const update = this.getUpdate() || {};
   const set = update.$set || update;

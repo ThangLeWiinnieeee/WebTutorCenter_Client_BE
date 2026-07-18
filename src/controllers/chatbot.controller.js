@@ -5,8 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
-// req.chatbotRequest được middleware buildChatbotRequest dựng sẵn (message + history +
-// sessionId + user + authToken). Controller chỉ gọi service và trả data.
+// Nhận câu hỏi người dùng và trả lời qua chatbot
 const ask = async (req, res, next) => {
   try {
     const data = await chatbotService.ask(req.chatbotRequest);

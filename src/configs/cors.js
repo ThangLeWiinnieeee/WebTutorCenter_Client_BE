@@ -1,14 +1,12 @@
-// Danh sách origin được phép. CLIENT_URL có thể chứa nhiều origin, phân tách bằng dấu phẩy
-// (vd: "http://localhost:4000,https://webtutor.vercel.app").
+// Danh sách origin được phép (CLIENT_URL có thể chứa nhiều origin, cách nhau bằng dấu phẩy)
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:4000")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
-// Cho phép các bản preview deploy của Vercel (mỗi commit một URL *.vercel.app).
-// CHỈ bật ngoài production: với credentials=true, cho mọi *.vercel.app ở production nghĩa là
-// bất kỳ ai deploy lên vercel.app đều thành origin được tin → siết lại, prod chỉ dùng allowlist.
 const isProduction = process.env.NODE_ENV === "production";
+
+// Cho phép bản preview *.vercel.app; chỉ bật ngoài production (prod chỉ dùng allowlist)
 const isVercelPreview = (origin) => {
   if (isProduction) return false;
   try {
@@ -18,6 +16,7 @@ const isVercelPreview = (origin) => {
   }
 };
 
+// Kiểm tra origin có được phép gọi API không
 const isAllowedOrigin = (origin) => {
   // Không có origin: request server-to-server, curl, health check của host → cho phép.
   if (!origin) return true;
@@ -26,6 +25,7 @@ const isAllowedOrigin = (origin) => {
   return false;
 };
 
+// Cấu hình CORS cho API
 const corsOptions = {
   origin: (origin, callback) => {
     if (isAllowedOrigin(origin)) return callback(null, true);

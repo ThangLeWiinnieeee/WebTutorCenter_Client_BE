@@ -30,6 +30,7 @@ let cachedPricingConfig = null;
 let pricingConfigCachedAt = 0;
 const PRICING_CONFIG_CACHE_MS = 60_000;
 
+// Lấy cấu hình bảng giá mặc định (có cache 60s)
 const loadPricingConfigDoc = async () => {
   const now = Date.now();
   if (cachedPricingConfig && now - pricingConfigCachedAt < PRICING_CONFIG_CACHE_MS) {
@@ -46,6 +47,7 @@ const loadPricingConfigDoc = async () => {
   return doc;
 };
 
+// Chuyển danh sách phí theo môn thành map { môn: phí }
 const mapBaseFeeBySubject = (baseFeeBySubject = []) => {
   const map = {};
   for (const item of baseFeeBySubject) {
@@ -54,6 +56,7 @@ const mapBaseFeeBySubject = (baseFeeBySubject = []) => {
   return map;
 };
 
+// Chuẩn hoá cấu hình bảng giá để trả về cho FE
 const toPricingConfigResponse = (doc) => {
   const minutesPerSessionOptions = [...(doc.minutesPerSessionOptions || [])].sort((a, b) => a - b);
   const defaultMinutesPerSession = minutesPerSessionOptions.includes(doc.sessionLengthBaseMinutes)
@@ -72,6 +75,7 @@ const toPricingConfigResponse = (doc) => {
   };
 };
 
+// Kiểm tra tham số tính giá hợp lệ (thời lượng buổi, số buổi/tuần)
 const ensurePricingInputValid = (payload, configDoc) => {
   const options = configDoc.minutesPerSessionOptions || [];
   if (!options.includes(payload.minutesPerSession)) {
@@ -92,6 +96,7 @@ const ensurePricingInputValid = (payload, configDoc) => {
   }
 };
 
+// Sinh mã lớp ngẫu nhiên không trùng
 const generateClassCode = () =>
   generateUniqueCode({
     generate: () => String(Math.floor(10000 + Math.random() * 90000)),
@@ -99,6 +104,7 @@ const generateClassCode = () =>
     errorMessage: "Không thể tạo mã lớp, vui lòng thử lại",
   });
 
+// Kiểm tra tỉnh/huyện hợp lệ và khớp nhau
 const ensureLocationValid = async (provinceCode, districtCode) => {
   const [province, district] = await Promise.all([
     locationRepository.findProvinceByCode(provinceCode),
@@ -110,6 +116,7 @@ const ensureLocationValid = async (provinceCode, districtCode) => {
   }
 };
 
+// Tính học phí mỗi buổi và mỗi tháng theo cấu hình
 const calculateFee = (payload, configDoc) => {
   const feeMap = mapBaseFeeBySubject(configDoc.baseFeeBySubject);
   const baseFee = feeMap[payload.subject] ?? configDoc.defaultBaseFee;
@@ -120,10 +127,8 @@ const calculateFee = (payload, configDoc) => {
   return { feePerSession, feePerMonth };
 };
 
-// Ngày bắt đầu buổi học phải cách hôm nay tối thiểu 2 ngày (không nhận hôm nay/ngày mai),
-// để người đăng có thời gian tìm & chọn gia sư trước khi lớp bắt đầu. So sánh theo mốc đầu
-// ngày UTC (startDate client gửi là chuỗi "yyyy-mm-dd" → đầu ngày UTC) nên không phụ thuộc giờ.
 const MIN_START_LEAD_DAYS = 2;
+// Kiểm tra ngày bắt đầu lớp cách hôm nay tối thiểu 2 ngày
 const ensureStartDateLeadTime = (startDate) => {
   const picked = new Date(startDate);
   const minStart = new Date();
@@ -134,6 +139,7 @@ const ensureStartDateLeadTime = (startDate) => {
   }
 };
 
+// Dựng dữ liệu lớp từ payload (validate khu vực, tính giá, áp mã ưu đãi)
 const buildClassData = async (payload, userId) => {
   ensureStartDateLeadTime(payload.startDate);
   const [province, district] = await Promise.all([
@@ -178,6 +184,7 @@ const buildClassData = async (payload, userId) => {
   return { data, promoDoc };
 };
 
+// Báo giá học phí cho lớp theo tham số đầu vào
 const quoteClass = async (payload) => {
   await ensureLocationValid(payload.provinceCode, payload.districtCode);
   const configDoc = await loadPricingConfigDoc();
@@ -185,26 +192,26 @@ const quoteClass = async (payload) => {
   return calculateFee(payload, configDoc);
 };
 
+// Kiểm tra người dùng có quyền xem thông tin nhạy cảm của lớp (SĐT/địa chỉ chi tiết)
 const checkCanViewSensitiveDetails = async (classItem, user) => {
   if (!user) return false;
   if (user.role === "admin") return true;
   const createdById = classItem.createdBy?._id || classItem.createdBy;
   if (createdById && createdById.toString() === user.id) return true;
 
-  // Check if user is a tutor with an approved application for this class
+  // Check if user is a tutor with an approved application for this class.
+  // Luồng mới: phải đã THANH TOÁN phí nhận lớp (feePaid) mới được xem SĐT/địa chỉ chi tiết —
+  // chặn gia sư mở /classes/:id để né bước thanh toán.
   const tutor = await tutorRepository.findByUserId(user.id);
   if (tutor) {
     const approvedApp = await classApplicationRepository.findByClassAndTutor(classItem._id || classItem.id, tutor._id);
-    if (approvedApp && approvedApp.status === "approved") return true;
+    if (approvedApp && approvedApp.status === "approved" && approvedApp.feePaid) return true;
   }
 
   return false;
 };
 
-// Lớp đã bị "khóa" (người đăng đã chọn gia sư / đã ghép / đang xin hủy) đã bị ẩn khỏi danh sách
-// công khai. Chỉ người đăng, admin, hoặc gia sư đã tham gia lớp (đang có đơn) mới được mở chi tiết
-// bằng URL trực tiếp; người ngoài (khách, gia sư khác) bị chặn — coi như không tồn tại để không lộ
-// thông tin lớp đã có chủ. Lớp còn mở (chưa ai được chọn) thì ai cũng xem được như trước.
+// Chặn người ngoài mở chi tiết lớp đã bị khoá (đã chọn/ghép gia sư); chỉ người đăng, admin, gia sư tham gia được xem
 const ensureCanViewLockedClass = async (classItem, user) => {
   const lockingApplication = await classApplicationRepository.findLockingByClassId(classItem._id);
   if (!lockingApplication) return;
@@ -223,6 +230,7 @@ const ensureCanViewLockedClass = async (classItem, user) => {
   throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 };
 
+// Ẩn thông tin liên hệ nhạy cảm của lớp với người không có quyền xem
 const maskClassItem = async (classItem, user) => {
   const isArray = Array.isArray(classItem);
   const items = isArray ? classItem : [classItem];
@@ -254,6 +262,7 @@ const maskClassItem = async (classItem, user) => {
   return isArray ? maskedList : maskedList[0];
 };
 
+// Tạo bài đăng tìm gia sư (validate môn, tạo lớp, cập nhật lượt dùng mã ưu đãi)
 const createClass = async (payload, userId) => {
   // Môn học phải thuộc danh mục đang bật (nguồn DB, không còn fix cứng)
   if (!(await subjectService.isValidSubjectName(payload.subject))) {
@@ -268,9 +277,7 @@ const createClass = async (payload, userId) => {
   return await maskClassItem(created, { id: userId });
 };
 
-// Người đăng mời một gia sư cụ thể dạy lớp của mình (luồng "mời gia sư trực tiếp").
-// Lớp được tạo với requestedTutorId (ẩn khỏi feed/danh sách công khai) + tạo sẵn 1 đơn
-// nhận lớp origin="invite" status="invited" và thông báo cho gia sư được mời.
+// Người đăng mời một gia sư cụ thể dạy lớp (tạo lớp ẩn + đơn mời + thông báo gia sư)
 const createInvitedClass = async (payload, userId) => {
   const { requestedTutorId, ...classPayload } = payload;
 
@@ -344,6 +351,7 @@ const createInvitedClass = async (payload, userId) => {
   return await maskClassItem(created, { id: userId });
 };
 
+// Chuẩn hoá tên môn dùng để lọc theo danh mục đang bật
 const normalizeSubjectFilter = (subject, names = []) => {
   if (!subject) return "";
   const normalized = subject.trim().toLowerCase();
@@ -351,6 +359,7 @@ const normalizeSubjectFilter = (subject, names = []) => {
   return matchedSubject || subject.trim();
 };
 
+// Lấy danh sách lớp công khai (lọc, phân trang, ẩn lớp đã khoá)
 const getClasses = async (query, user) => {
   const filters = {};
   if (query.subject) {
@@ -385,11 +394,7 @@ const OCCUPATION_TO_LEVEL = {
   [OCCUPATION_STATUS.TEACHER]: "teacher",
 };
 
-// Tính các tiêu chí cá nhân hóa của gia sư để lọc feed:
-// - Giới tính: gia sư nam/nữ → khớp bài yêu cầu đúng giới đó + bài không yêu cầu giới;
-//   gia sư không khai giới tính (hoặc "other") → chỉ khớp bài không yêu cầu giới.
-// - Trình độ: theo occupationStatus → khớp bài yêu cầu đúng mức + bài không yêu cầu trình độ.
-// - Khu vực: chỉ bài đăng có tỉnh/thành trùng khu vực dạy của gia sư.
+// Tính tiêu chí cá nhân hoá của gia sư để lọc feed (giới tính, trình độ, khu vực)
 const buildTutorFeedCriteria = (tutor, user) => {
   const gender = user?.gender;
   const genderPrefs = gender === "male" || gender === "female" ? [gender, "any"] : ["any"];
@@ -402,9 +407,7 @@ const buildTutorFeedCriteria = (tutor, user) => {
   return { genderPrefs, levelPrefs, provinceCode, gender: gender || null, level };
 };
 
-// Feed bài đăng tuyển gia sư, cá nhân hóa theo hồ sơ gia sư:
-// môn đăng ký dạy + giới tính + trình độ + khu vực dạy.
-// Dùng truy vấn lọc trực tiếp (thay vì tạo thông báo cho từng gia sư) để mở rộng tốt.
+// Lấy feed bài đăng phù hợp cho gia sư (cá nhân hoá theo môn/giới tính/trình độ/khu vực)
 const getClassFeedForTutor = async (userId, query = {}) => {
   const [tutor, user] = await Promise.all([
     tutorRepository.findByUserId(userId),
@@ -480,6 +483,7 @@ const getClassFeedForTutor = async (userId, query = {}) => {
   };
 };
 
+// Lấy danh sách bài đăng của người dùng kèm trạng thái đơn và gia sư đã ghép
 const getMyPostedClasses = async (userId, query = {}) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -610,6 +614,7 @@ const deletePostedClass = async (classId, userId) => {
   return { id: classId };
 };
 
+// Lấy chi tiết một lớp (kiểm tra quyền xem, ghi tín hiệu quan tâm, kèm gia sư đã ghép)
 const getClassById = async (id, user) => {
   const classItem = await classRepository.findById(id);
   if (!classItem) {
@@ -706,10 +711,12 @@ const confirmClassCompletion = async (userId, classId) => {
   return maskClassItem(updated, { id: userId });
 };
 
+// Lấy danh sách môn học đang bật
 const getSubjects = async () => {
   return await subjectService.getActiveSubjectNames();
 };
 
+// Lấy cấu hình bảng giá học phí (đã chuẩn hoá cho FE)
 const getPricingConfig = async () => {
   const configDoc = await loadPricingConfigDoc();
   return toPricingConfigResponse(configDoc);

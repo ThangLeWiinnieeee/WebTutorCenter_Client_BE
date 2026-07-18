@@ -11,6 +11,7 @@ const HTTP_STATUS = require("../constants/status");
 const { ClassApplicationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 
+// Lấy danh sách yêu cầu huỷ đơn nhận lớp kèm thống kê theo trạng thái
 const getApplicationCancellations = async (query = {}) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -35,6 +36,7 @@ const getApplicationCancellations = async (query = {}) => {
   };
 };
 
+// Duyệt yêu cầu huỷ đơn nhận lớp (mở lại lớp, trừ thống kê, thông báo gia sư)
 const approveCancellation = async (applicationId) => {
   const application = await classApplicationRepository.findById(applicationId);
   if (!application) throw new AppError(MESSAGE.CLASS_APPLICATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -75,6 +77,7 @@ const approveCancellation = async (applicationId) => {
   return ClassApplicationMapper.toDTO(updated);
 };
 
+// Từ chối yêu cầu huỷ đơn nhận lớp (giữ nguyên đơn, thông báo gia sư)
 const rejectCancellation = async (applicationId, reason) => {
   const application = await classApplicationRepository.findById(applicationId);
   if (!application) throw new AppError(MESSAGE.CLASS_APPLICATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

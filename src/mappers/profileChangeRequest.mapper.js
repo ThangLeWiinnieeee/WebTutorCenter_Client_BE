@@ -2,6 +2,7 @@ const TutorMapper = require("./tutor.mapper");
 const locationCache = require("../utils/locationCache");
 
 class ProfileChangeRequestMapper {
+  // Chuyển một yêu cầu đổi hồ sơ thành DTO (kèm hồ sơ hiện tại và phần thay đổi đã dịch tên)
   static async toDTO(doc) {
     if (!doc) return null;
 
@@ -29,6 +30,7 @@ class ProfileChangeRequestMapper {
     };
   }
 
+  // Chuyển danh sách yêu cầu đổi hồ sơ thành danh sách DTO
   static async toDTOList(docs) {
     if (!Array.isArray(docs)) return [];
     return Promise.all(docs.map((doc) => ProfileChangeRequestMapper.toDTO(doc)));

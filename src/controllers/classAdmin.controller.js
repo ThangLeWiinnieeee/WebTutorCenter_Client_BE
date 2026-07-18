@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
+// Lấy danh sách lớp học cho admin
 const getAdminClasses = async (req, res, next) => {
   try {
     const data = await classAdminService.getAdminClasses(req.query);
@@ -18,6 +19,7 @@ const getAdminClasses = async (req, res, next) => {
   }
 };
 
+// Lấy chi tiết một lớp học cho admin
 const getAdminClassDetail = async (req, res, next) => {
   try {
     const classItem = await classAdminService.getAdminClassDetail(req.params.id);
@@ -31,6 +33,7 @@ const getAdminClassDetail = async (req, res, next) => {
   }
 };
 
+// Chuyển lớp học vào thùng rác (xoá mềm)
 const deleteAdminClass = async (req, res, next) => {
   try {
     const result = await classAdminService.deleteAdminClass(req.params.id, req.user.id);

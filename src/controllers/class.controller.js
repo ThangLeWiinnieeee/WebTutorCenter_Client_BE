@@ -5,6 +5,7 @@ const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
+// Báo giá học phí cho lớp dựa trên tham số đầu vào
 const quoteClass = async (req, res, next) => {
   try {
     const quote = await classService.quoteClass(req.body);
@@ -17,6 +18,7 @@ const quoteClass = async (req, res, next) => {
   }
 };
 
+// Tạo bài đăng tìm gia sư
 const createClass = async (req, res, next) => {
   try {
     const created = await classService.createClass(req.body, req.user.id);
@@ -44,6 +46,7 @@ const createInvite = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách lớp có lọc và phân trang
 const getClasses = async (req, res, next) => {
   try {
     const result = await classService.getClasses(req.query, req.user);
@@ -56,6 +59,7 @@ const getClasses = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách lớp phù hợp cho gia sư (feed)
 const getClassFeed = async (req, res, next) => {
   try {
     const result = await classService.getClassFeedForTutor(req.user.id, req.query);
@@ -68,6 +72,7 @@ const getClassFeed = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách bài đăng lớp của người dùng hiện tại
 const getMyPosts = async (req, res, next) => {
   try {
     const result = await classService.getMyPostedClasses(req.user.id, req.query);
@@ -80,6 +85,7 @@ const getMyPosts = async (req, res, next) => {
   }
 };
 
+// Lấy chi tiết một lớp
 const getClassDetail = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -96,6 +102,7 @@ const getClassDetail = async (req, res, next) => {
   }
 };
 
+// Cập nhật bài đăng lớp của người đăng
 const updateClass = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -112,6 +119,7 @@ const updateClass = async (req, res, next) => {
   }
 };
 
+// Xoá bài đăng lớp của người đăng
 const deleteClass = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -128,6 +136,7 @@ const deleteClass = async (req, res, next) => {
   }
 };
 
+// Xác nhận hoàn thành lớp
 const completeClass = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -144,6 +153,7 @@ const completeClass = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách môn học
 const getSubjects = async (req, res, next) => {
   try {
     const subjects = await classService.getSubjects();
@@ -156,6 +166,7 @@ const getSubjects = async (req, res, next) => {
   }
 };
 
+// Lấy cấu hình bảng giá học phí
 const getPricingConfig = async (req, res, next) => {
   try {
     const pricingConfig = await classService.getPricingConfig();

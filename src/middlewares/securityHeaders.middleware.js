@@ -1,8 +1,6 @@
-// Header bảo mật cơ bản cho API (thay cho helmet — chỉ vài dòng, không thêm dependency).
-// API trả JSON nên không cần CSP phức tạp; tập trung vào chống MIME-sniffing, clickjacking,
-// rò rỉ referrer. HSTS chỉ bật ở production (HTTPS) để không cản dev chạy http localhost.
 const isProduction = process.env.NODE_ENV === "production";
 
+// Gắn các header bảo mật cơ bản cho API (chống MIME-sniffing, clickjacking, rò rỉ referrer; HSTS ở production)
 const securityHeaders = (_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff"); // chặn browser đoán MIME (JSON -> HTML)
   res.setHeader("X-Frame-Options", "DENY"); // chống nhúng iframe (clickjacking)

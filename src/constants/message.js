@@ -83,6 +83,19 @@ const MESSAGE = {
   CLASS_APPLICATION_APPROVE_SUCCESS: "Đã duyệt gia sư cho lớp thành công",
   CLASS_APPLICATION_REJECT_SUCCESS: "Đã từ chối đơn đăng ký nhận lớp",
 
+  // Thanh toán phí nhận lớp (gia sư trả phí qua VNPay sau khi được admin duyệt)
+  PAYMENT_INIT_SUCCESS: "Đang chuyển đến cổng thanh toán VNPay...",
+  PAYMENT_APPLICATION_NOT_APPROVED: "Chỉ có thể thanh toán phí cho lớp đã được admin duyệt",
+  PAYMENT_ALREADY_PAID: "Bạn đã thanh toán phí nhận lớp này rồi",
+  PAYMENT_INVALID_AMOUNT: "Không xác định được số tiền phí nhận lớp",
+  PAYMENT_NOT_FOUND: "Không tìm thấy giao dịch thanh toán",
+  PAYMENT_LIST_SUCCESS: "Lấy lịch sử thanh toán thành công",
+  PAYMENT_CONFIG_MISSING: "Cổng thanh toán chưa được cấu hình",
+  PAYMENT_PROVIDER_INVALID: "Cổng thanh toán không hợp lệ",
+  PAYMENT_PROVIDERS_LIST_SUCCESS: "Lấy danh sách cổng thanh toán thành công",
+  PAYMENT_ADMIN_LIST_SUCCESS: "Lấy danh sách thanh toán thành công",
+  STATS_SUMMARY_SUCCESS: "Lấy thống kê thành công",
+
   // Người đăng chọn gia sư từ danh sách ứng tuyển
   CLASS_APPLICANTS_LIST_SUCCESS: "Lấy danh sách gia sư ứng tuyển thành công",
   CLASS_APPLICANT_SELECT_SUCCESS: "Đã chọn gia sư, vui lòng chờ admin duyệt lớp",

@@ -1,9 +1,11 @@
 const { Conversation } = require("../models/conversation.model");
 
+// Tìm cuộc trò chuyện theo id người dùng (gia sư/học viên)
 const findByTutorUserId = async (tutorUserId) => {
   return Conversation.findOne({ tutorUserId }).populate("tutorUserId", "fullName email avatar role").lean();
 };
 
+// Lấy một cuộc trò chuyện theo id
 const findById = async (id) => {
   return Conversation.findById(id).populate("tutorUserId", "fullName email avatar role").lean();
 };
@@ -19,8 +21,7 @@ const findOrCreateByTutorUserId = async (tutorUserId) => {
     .lean();
 };
 
-// Danh sách hội thoại cho admin (mới hoạt động trước). Lọc theo tên/email gia sư
-// được xử lý ở service (cần id user khớp keyword) → ở đây nhận sẵn filter.
+// Lấy một trang hội thoại cho admin (mới hoạt động trước, nhận sẵn filter)
 const findPageForAdmin = async ({ filter = {}, page = 1, limit = 20 }) => {
   const skip = (Math.max(1, page) - 1) * limit;
   const [items, totalItems] = await Promise.all([
@@ -35,6 +36,7 @@ const findPageForAdmin = async ({ filter = {}, page = 1, limit = 20 }) => {
   return { items, totalItems };
 };
 
+// Cập nhật một cuộc trò chuyện theo id
 const updateById = async (id, update) => {
   return Conversation.findByIdAndUpdate(id, update, { new: true })
     .populate("tutorUserId", "fullName email avatar role")

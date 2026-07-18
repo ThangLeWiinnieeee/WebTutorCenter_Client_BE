@@ -1,9 +1,7 @@
 const AppError = require("./AppError");
 const HTTP_STATUS = require("../constants/status");
 
-// Sinh một mã duy nhất: thử tối đa `attempts` lần, mỗi lần tạo ứng viên bằng `generate()`
-// rồi kiểm tra đã tồn tại chưa bằng `exists(code)` (trả về truthy nếu đã dùng).
-// Trả về mã đầu tiên chưa tồn tại; hết lượt thử thì ném lỗi.
+// Sinh một mã duy nhất (thử tối đa `attempts` lần, kiểm tra trùng qua `exists()`)
 const generateUniqueCode = async ({
   generate,
   exists,

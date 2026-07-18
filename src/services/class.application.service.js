@@ -15,6 +15,7 @@ const notificationService = require("./notification.service");
 const { ClassApplicationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 
+// Gia sư ứng tuyển vào một lớp (kiểm tra điều kiện, tạo đơn, báo người đăng)
 const applyForClass = async (userId, classId) => {
   const classItem = await classRepository.findById(classId);
   if (!classItem) throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -157,6 +158,7 @@ const selectApplicant = async (userId, classId, applicationId) => {
   return ClassApplicationMapper.toDTO(updated);
 };
 
+// Lấy danh sách đơn ứng tuyển của gia sư kèm thống kê theo trạng thái
 const getMyApplications = async (userId, query = {}) => {
   const tutor = await tutorRepository.findByUserId(userId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -196,6 +198,7 @@ const getMyApplications = async (userId, query = {}) => {
   };
 };
 
+// Gửi thông báo cho tất cả admin
 const notifyAdmins = async (type, message) => {
   const admins = await userRepository.findAllByRole(ROLES.ADMIN);
   await Promise.all(
@@ -210,9 +213,7 @@ const notifyAdmins = async (type, message) => {
   );
 };
 
-// Gia sư rút/hủy đơn nhận lớp.
-// - Đơn pending: hủy ngay (cancelled).
-// - Đơn approved: tạo yêu cầu hủy (cancel_requested) chờ admin duyệt.
+// Gia sư rút/huỷ đơn nhận lớp (pending: huỷ ngay; approved: gửi yêu cầu huỷ chờ admin duyệt)
 const cancelApplication = async (userId, applicationId, reason) => {
   const application = await classApplicationRepository.findById(applicationId);
   if (!application) throw new AppError(MESSAGE.CLASS_APPLICATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

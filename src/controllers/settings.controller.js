@@ -14,6 +14,7 @@ const DEFAULT_FOOTER = {
   twitterLink: "",
 };
 
+// Lấy cấu hình footer (tự tạo giá trị mặc định nếu chưa có)
 const getFooterSettings = async (req, res, next) => {
   try {
     let footer;
@@ -44,11 +45,12 @@ const getFooterSettings = async (req, res, next) => {
   }
 };
 
+// Cập nhật cấu hình footer
 const updateFooterSettings = async (req, res, next) => {
   try {
     const payload = req.body;
     
-    // Simple verification
+    // Kiểm tra các trường bắt buộc
     if (!payload.address || !payload.phone || !payload.email) {
       throw new AppError(MESSAGE.SETTINGS_FOOTER_REQUIRED, HTTP_STATUS.BAD_REQUEST);
     }

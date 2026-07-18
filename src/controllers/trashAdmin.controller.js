@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
+// Lấy danh sách mục trong thùng rác theo loại
 const getTrashItems = async (req, res, next) => {
   try {
     const data = await trashAdminService.getTrashItems(req.params.type, req.query);
@@ -18,6 +19,7 @@ const getTrashItems = async (req, res, next) => {
   }
 };
 
+// Đếm số mục trong thùng rác theo từng loại
 const getTrashCounts = async (req, res, next) => {
   try {
     const counts = await trashAdminService.getTrashCounts();
@@ -31,6 +33,7 @@ const getTrashCounts = async (req, res, next) => {
   }
 };
 
+// Khôi phục một mục từ thùng rác
 const restoreTrashItem = async (req, res, next) => {
   try {
     const result = await trashAdminService.restoreTrashItem(req.params.type, req.params.id);
@@ -44,6 +47,7 @@ const restoreTrashItem = async (req, res, next) => {
   }
 };
 
+// Xoá vĩnh viễn một mục trong thùng rác
 const purgeTrashItem = async (req, res, next) => {
   try {
     const result = await trashAdminService.purgeTrashItem(req.params.type, req.params.id);

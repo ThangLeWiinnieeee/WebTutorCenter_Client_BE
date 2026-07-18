@@ -2,6 +2,7 @@ const { errorResponse } = require("../utils/response");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 
+// Chặn truy cập nếu vai trò người dùng không nằm trong danh sách cho phép
 const roleMiddleware = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {

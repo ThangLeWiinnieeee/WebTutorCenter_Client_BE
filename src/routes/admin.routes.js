@@ -13,6 +13,8 @@ const classApplicationAdminRoutes = require("./classApplicationAdmin.routes");
 const cancellationAdminRoutes = require("./cancellationAdmin.routes");
 const reviewAdminRoutes = require("./reviewAdmin.routes");
 const profileChangeAdminRoutes = require("./profileChangeAdmin.routes");
+const paymentAdminRoutes = require("./paymentAdmin.routes");
+const statsAdminRoutes = require("./statsAdmin.routes");
 
 // Áp dụng auth + admin role check cho tất cả admin routes
 router.use(authMiddleware, roleMiddleware("admin"));
@@ -25,5 +27,7 @@ router.use("/class-applications", classApplicationAdminRoutes);
 router.use("/application-cancellations", cancellationAdminRoutes);
 router.use("/reviews", reviewAdminRoutes);
 router.use("/profile-changes", profileChangeAdminRoutes);
+router.use("/payments", paymentAdminRoutes);
+router.use("/stats", statsAdminRoutes);
 
 module.exports = router;

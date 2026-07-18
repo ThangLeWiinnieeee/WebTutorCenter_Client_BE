@@ -12,14 +12,14 @@ const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 const { buildPagination } = require("../utils/pagination");
 
+// Kiểm tra id có phải ObjectId hợp lệ, không thì ném lỗi 404
 const assertValidObjectId = (id, message) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new AppError(message, HTTP_STATUS.NOT_FOUND);
   }
 };
 
-// Tính lại điểm trung bình của gia sư từ các đánh giá còn hiệu lực và lưu vào hồ sơ gia sư.
-// Gọi sau mỗi thay đổi (tạo / xóa mềm / khôi phục) để "sao tổng" luôn chính xác.
+// Tính lại điểm trung bình của gia sư từ các đánh giá còn hiệu lực và lưu vào hồ sơ
 const recomputeTutorRating = async (tutorId) => {
   const { sum, count } = await reviewRepository.aggregateActiveByTutor(tutorId);
   const averageRating = count > 0 ? Math.round((sum / count) * 10) / 10 : 0;

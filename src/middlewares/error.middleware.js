@@ -1,11 +1,7 @@
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-// Phân biệt 2 loại lỗi:
-//  - Lỗi do người dùng thao tác sai (AppError, hoặc lỗi có chủ đích với mã 4xx):
-//    trả message thật để FE hiển thị cho người dùng.
-//  - Lỗi hệ thống (ngoài dự kiến: bug, lỗi DB, lỗi tích hợp...): CHỈ ghi log ở terminal BE,
-//    không lộ chi tiết kỹ thuật ra phía FE (tránh rò rỉ thông tin & gây khó hiểu cho người dùng).
+// Middleware xử lý lỗi tập trung: lỗi người dùng trả message thật, lỗi hệ thống chỉ log ở BE
 const errorMiddleware = (err, req, res, next) => {
   const isUserError = err.isUserError === true || (err.statusCode && err.statusCode < 500);
 

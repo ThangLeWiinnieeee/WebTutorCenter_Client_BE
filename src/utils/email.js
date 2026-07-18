@@ -1,7 +1,6 @@
 const { OAuth2Client } = require("google-auth-library");
 
-// Gửi email qua Gmail API (REST/HTTPS cổng 443) thay vì SMTP — tránh bị hosting (Render) chặn cổng SMTP.
-// OAuth2 dùng lại Google Client ID/Secret + một refresh_token của tài khoản gửi (lấy qua scripts/getGmailRefreshToken.js).
+// Gửi email qua Gmail API (HTTPS 443) thay vì SMTP để tránh bị hosting chặn cổng SMTP
 const oAuth2Client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -11,8 +10,7 @@ oAuth2Client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
 // Địa chỉ gửi hiển thị; phần email phải là tài khoản Gmail đã cấp quyền (GMAIL_USER).
 const FROM_ADDRESS = process.env.EMAIL_FROM || `WebTutorCenter <${process.env.GMAIL_USER}>`;
 
-// Chống XSS/HTML-injection: escape dữ liệu người dùng (fullName) trước khi nhét vào HTML email.
-// XSS được chặn ở NƠI XUẤT HTML (email), không phải bằng cách strip input.
+// Escape HTML để chống XSS trong nội dung email
 const HTML_ESCAPE = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => HTML_ESCAPE[c]);
 
@@ -47,6 +45,7 @@ const _send = async ({ to, subject, html }) => {
   });
 };
 
+// Gửi email chứa mã OTP xác thực đăng ký
 const sendOtpEmail = async ({ to, fullName, otp, expiresInMinutes }) => {
   await _send({
     to,
@@ -91,6 +90,7 @@ const sendOtpEmail = async ({ to, fullName, otp, expiresInMinutes }) => {
   });
 };
 
+// Gửi email chứa mã OTP khôi phục mật khẩu
 const sendForgotPasswordOtpEmail = async ({ to, fullName, otp, expiresInMinutes }) => {
   await _send({
     to,

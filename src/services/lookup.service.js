@@ -1,7 +1,7 @@
 const lookupRepository = require("../repositories/lookup.repository");
 
 const lookupService = {
-  // Lấy danh sách values theo type (public)
+  // Lấy danh sách giá trị lookup theo loại (public)
   async getByType(type) {
     const values = await lookupRepository.getValuesByType(type, true);
     if (values.length === 0) {
@@ -16,7 +16,7 @@ const lookupService = {
     }));
   },
 
-  // Lấy districts của province (public)
+  // Lấy danh sách quận/huyện theo tỉnh (public)
   async getDistrictsByProvince(provinceValue) {
     const districts = await lookupRepository.getDistrictsByProvince(provinceValue, true);
     if (districts.length === 0) {
@@ -29,32 +29,32 @@ const lookupService = {
     }));
   },
 
-  // Lấy tất cả lookup data (grouped)
+  // Lấy toàn bộ dữ liệu lookup gom theo nhóm
   async getAllGrouped() {
     return await lookupRepository.getAllGrouped();
   },
 
-  // Admin: Create lookup
+  // Tạo một giá trị lookup (admin)
   async createLookup(data) {
     return await lookupRepository.create(data);
   },
 
-  // Admin: Create many lookups
+  // Tạo nhiều giá trị lookup cùng lúc (admin)
   async createManyLookups(data) {
     return await lookupRepository.createMany(data);
   },
 
-  // Admin: Update lookup
+  // Cập nhật một giá trị lookup (admin)
   async updateLookup(id, data) {
     return await lookupRepository.updateById(id, data);
   },
 
-  // Admin: Delete lookup
+  // Xoá một giá trị lookup (admin)
   async deleteLookup(id) {
     return await lookupRepository.deleteById(id);
   },
 
-  // Admin: Delete all by type
+  // Xoá toàn bộ giá trị lookup theo loại (admin)
   async deleteByType(type) {
     return await lookupRepository.deleteByType(type);
   },

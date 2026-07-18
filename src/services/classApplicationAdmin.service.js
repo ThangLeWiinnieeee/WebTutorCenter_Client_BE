@@ -11,6 +11,7 @@ const HTTP_STATUS = require("../constants/status");
 const { ClassApplicationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 
+// Lấy danh sách đơn nhận lớp cho admin (lọc, phân trang, thống kê theo trạng thái)
 const getClassApplications = async (query = {}) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -39,11 +40,13 @@ const getClassApplications = async (query = {}) => {
   };
 };
 
+// Thống kê số lượng đơn nhận lớp theo trạng thái
 const getClassApplicationStats = async (query = {}) => {
   const origin = query.origin === "apply" || query.origin === "invite" ? query.origin : null;
   return await classApplicationRepository.countAll(origin);
 };
 
+// Duyệt đơn nhận lớp (ghép lớp, loại các ứng viên còn lại, thông báo các bên)
 const approveClassApplication = async (applicationId) => {
   const application = await classApplicationRepository.findById(applicationId);
   if (!application) throw new AppError(MESSAGE.CLASS_APPLICATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -96,6 +99,7 @@ const approveClassApplication = async (applicationId) => {
   return ClassApplicationMapper.toDTO(updated);
 };
 
+// Từ chối đơn nhận lớp (kèm lý do, thông báo gia sư và người đăng)
 const rejectClassApplication = async (applicationId, rejectionReason) => {
   const application = await classApplicationRepository.findById(applicationId);
   if (!application) throw new AppError(MESSAGE.CLASS_APPLICATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

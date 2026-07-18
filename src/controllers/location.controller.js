@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
+// Lấy danh sách tỉnh/thành phố
 const getProvinces = async (req, res, next) => {
   try {
     const provinces = await locationService.getProvinces();
@@ -17,6 +18,7 @@ const getProvinces = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách quận/huyện theo mã tỉnh
 const getDistricts = async (req, res, next) => {
   try {
     const provinceCode = Number(req.params.provinceCode);
@@ -33,6 +35,7 @@ const getDistricts = async (req, res, next) => {
   }
 };
 
+// Tìm kiếm trường học theo từ khoá
 const getSchools = async (req, res, next) => {
   try {
     const { q } = req.query;

@@ -1,4 +1,5 @@
 class NotificationMapper {
+  // Chuyển một thông báo thành DTO
   static toDTO(notification) {
     if (!notification) {
       throw new Error("NotificationMapper.toDTO: notification is required");
@@ -14,6 +15,7 @@ class NotificationMapper {
     };
   }
 
+  // Chuyển danh sách thông báo thành danh sách DTO
   static toDTOList(notifications) {
     if (!Array.isArray(notifications)) {
       return [];

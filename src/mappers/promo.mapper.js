@@ -1,4 +1,5 @@
 class PromoMapper {
+  // Chuyển một mã giảm giá thành DTO
   static toDTO(promo) {
     if (!promo) return null;
 
@@ -20,6 +21,7 @@ class PromoMapper {
     };
   }
 
+  // Chuyển danh sách mã giảm giá thành danh sách DTO
   static toDTOs(promos) {
     if (!Array.isArray(promos)) return [];
     return promos.map((item) => this.toDTO(item));

@@ -1,5 +1,6 @@
 const Otp = require("../models/otp.model");
 
+// Tạo bản ghi OTP mới
 const create = async ({ email, otp, type, expiresAt }) => {
   return await Otp.create({ email, otp, type, expiresAt });
 };
@@ -15,6 +16,7 @@ const incrementAttempts = async (otpId) => {
   return doc ? doc.attempts : Infinity;
 };
 
+// Xoá OTP theo email và loại
 const deleteByEmailAndType = async (email, type) => {
   return await Otp.deleteMany({ email, type });
 };

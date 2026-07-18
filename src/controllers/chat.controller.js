@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 // ──────────────────────────── Gia sư ────────────────────────────
 
+// Lấy cuộc trò chuyện của gia sư kèm tin nhắn
 const getMyConversation = async (req, res, next) => {
   try {
     const result = await chatService.getTutorConversation(req.user.id, req.query);
@@ -14,6 +15,7 @@ const getMyConversation = async (req, res, next) => {
   }
 };
 
+// Gia sư gửi tin nhắn văn bản
 const sendMyMessage = async (req, res, next) => {
   try {
     const message = await chatService.sendMessageAsTutor(req.user.id, { content: req.body.content });
@@ -27,6 +29,7 @@ const sendMyMessage = async (req, res, next) => {
   }
 };
 
+// Gia sư gửi tin nhắn kèm ảnh
 const sendMyImageMessage = async (req, res, next) => {
   try {
     const message = await chatService.sendMessageAsTutor(req.user.id, {
@@ -43,6 +46,7 @@ const sendMyImageMessage = async (req, res, next) => {
   }
 };
 
+// Gia sư đánh dấu đã đọc cuộc trò chuyện
 const markMyConversationRead = async (req, res, next) => {
   try {
     await chatService.markTutorRead(req.user.id);
@@ -52,6 +56,7 @@ const markMyConversationRead = async (req, res, next) => {
   }
 };
 
+// Đếm số tin nhắn chưa đọc của gia sư
 const getMyUnreadCount = async (req, res, next) => {
   try {
     const unreadCount = await chatService.getTutorUnreadCount(req.user.id);
@@ -63,6 +68,7 @@ const getMyUnreadCount = async (req, res, next) => {
 
 // ──────────────────────────── Admin ────────────────────────────
 
+// Lấy danh sách cuộc trò chuyện cho admin
 const getConversations = async (req, res, next) => {
   try {
     const result = await chatService.getAdminConversations(req.query);
@@ -72,6 +78,7 @@ const getConversations = async (req, res, next) => {
   }
 };
 
+// Lấy tin nhắn của một cuộc trò chuyện (admin)
 const getConversationMessages = async (req, res, next) => {
   try {
     const result = await chatService.getAdminConversationMessages(req.params.id, req.query);
@@ -81,6 +88,7 @@ const getConversationMessages = async (req, res, next) => {
   }
 };
 
+// Admin gửi tin nhắn văn bản vào cuộc trò chuyện
 const sendConversationMessage = async (req, res, next) => {
   try {
     const message = await chatService.sendMessageAsAdmin(req.params.id, req.user.id, {
@@ -96,6 +104,7 @@ const sendConversationMessage = async (req, res, next) => {
   }
 };
 
+// Admin gửi tin nhắn kèm ảnh vào cuộc trò chuyện
 const sendConversationImageMessage = async (req, res, next) => {
   try {
     const message = await chatService.sendMessageAsAdmin(req.params.id, req.user.id, {
@@ -112,6 +121,7 @@ const sendConversationImageMessage = async (req, res, next) => {
   }
 };
 
+// Admin gửi thẻ lớp/gia sư vào cuộc trò chuyện
 const sendConversationCard = async (req, res, next) => {
   try {
     const message = await chatService.sendCardAsAdmin(req.params.id, req.user.id, {
@@ -128,6 +138,7 @@ const sendConversationCard = async (req, res, next) => {
   }
 };
 
+// Admin đánh dấu đã đọc cuộc trò chuyện
 const markConversationRead = async (req, res, next) => {
   try {
     await chatService.markAdminRead(req.params.id);
@@ -137,6 +148,7 @@ const markConversationRead = async (req, res, next) => {
   }
 };
 
+// Đếm tổng số tin nhắn chưa đọc của admin
 const getAdminUnreadCount = async (req, res, next) => {
   try {
     const unreadCount = await chatService.getAdminUnreadTotal();
@@ -146,6 +158,7 @@ const getAdminUnreadCount = async (req, res, next) => {
   }
 };
 
+// Mở hoặc tạo cuộc trò chuyện với một gia sư
 const startConversation = async (req, res, next) => {
   try {
     const conversation = await chatService.startConversationWithTutor(req.body.tutorUserId);
