@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
+// Lấy danh sách yêu cầu đổi thông tin hồ sơ
 const getProfileChanges = async (req, res, next) => {
   try {
     const result = await profileChangeAdminService.getProfileChangeRequests(req.query);
@@ -18,6 +19,7 @@ const getProfileChanges = async (req, res, next) => {
   }
 };
 
+// Duyệt yêu cầu đổi thông tin hồ sơ
 const approveProfileChange = async (req, res, next) => {
   try {
     const request = await profileChangeAdminService.approveProfileChange(req.params.id, req.user.id);
@@ -31,6 +33,7 @@ const approveProfileChange = async (req, res, next) => {
   }
 };
 
+// Từ chối yêu cầu đổi thông tin hồ sơ
 const rejectProfileChange = async (req, res, next) => {
   try {
     const request = await profileChangeAdminService.rejectProfileChange(req.params.id, req.body.rejectionReason, req.user.id);

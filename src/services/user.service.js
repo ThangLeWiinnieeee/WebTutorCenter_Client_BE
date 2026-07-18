@@ -5,6 +5,7 @@ const HTTP_STATUS = require("../constants/status");
 const AppError = require("../utils/AppError");
 const { UserMapper } = require("../mappers");
 
+// Lấy thông tin tài khoản theo id
 const getUserInfo = async (userId) => {
   const user = await userRepository.findById(userId);
   if (!user) {
@@ -13,6 +14,7 @@ const getUserInfo = async (userId) => {
   return UserMapper.toDTO(user);
 };
 
+// Cập nhật ảnh đại diện mới và xoá ảnh cũ trên Cloudinary
 const uploadAvatar = async (userId, avatarUrl) => {
   const currentUser = await userRepository.findById(userId);
   if (!currentUser) {
@@ -30,6 +32,7 @@ const uploadAvatar = async (userId, avatarUrl) => {
   return UserMapper.toDTO(user);
 };
 
+// Cập nhật thông tin cá nhân của người dùng
 const updateProfile = async (userId, { fullName, phone, gender, dateOfBirth, avatar }) => {
   const updateData = { fullName };
   if (phone !== undefined) {

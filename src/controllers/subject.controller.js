@@ -33,6 +33,7 @@ const getAdminSubjects = async (req, res, next) => {
   }
 };
 
+// Tạo môn học mới
 const createSubject = async (req, res, next) => {
   try {
     const subject = await subjectService.createSubject(req.body);
@@ -46,6 +47,7 @@ const createSubject = async (req, res, next) => {
   }
 };
 
+// Cập nhật môn học (tên, trạng thái, thứ tự)
 const updateSubject = async (req, res, next) => {
   try {
     const subject = await subjectService.updateSubject(req.params.id, req.body);

@@ -11,6 +11,7 @@ let cachedActiveNames = null;
 let activeNamesCachedAt = 0;
 const ACTIVE_NAMES_CACHE_MS = 60_000;
 
+// Xoá cache tên môn đang bật
 const clearSubjectCache = () => {
   cachedActiveNames = null;
   activeNamesCachedAt = 0;
@@ -37,10 +38,12 @@ const isValidSubjectName = async (name) => {
 };
 
 // ── Admin ──
+// Lấy danh sách môn học cho admin (kể cả môn đã tắt)
 const listForAdmin = async ({ keyword = "" } = {}) => {
   return await subjectRepository.findAll({ keyword });
 };
 
+// Tạo môn học mới
 const createSubject = async ({ name, order } = {}) => {
   const trimmed = typeof name === "string" ? name.trim() : "";
   if (!trimmed) throw new AppError(MESSAGE.SUBJECT_NAME_REQUIRED, HTTP_STATUS.UNPROCESSABLE_ENTITY);
@@ -57,6 +60,7 @@ const createSubject = async ({ name, order } = {}) => {
   return created;
 };
 
+// Cập nhật môn học; khi đổi tên thì cascade cập nhật dữ liệu cũ (tutor/class)
 const updateSubject = async (id, { name, isActive, order } = {}) => {
   const subject = await subjectRepository.findById(id);
   if (!subject) throw new AppError(MESSAGE.SUBJECT_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

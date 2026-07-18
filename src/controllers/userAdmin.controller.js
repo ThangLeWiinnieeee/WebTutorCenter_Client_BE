@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
+// Lấy danh sách người dùng cho admin
 const getAdminUsers = async (req, res, next) => {
   try {
     const data = await userAdminService.getAdminUsers(req.query);
@@ -18,6 +19,7 @@ const getAdminUsers = async (req, res, next) => {
   }
 };
 
+// Cập nhật thông tin người dùng (admin)
 const updateAdminUser = async (req, res, next) => {
   try {
     const user = await userAdminService.updateAdminUser(req.user.id, req.params.id, req.body);
@@ -31,6 +33,7 @@ const updateAdminUser = async (req, res, next) => {
   }
 };
 
+// Bật/tắt trạng thái hoạt động của tài khoản người dùng
 const updateAdminUserStatus = async (req, res, next) => {
   try {
     const user = await userAdminService.updateAdminUserStatus(req.user.id, req.params.id, req.body.isActive);
@@ -44,6 +47,7 @@ const updateAdminUserStatus = async (req, res, next) => {
   }
 };
 
+// Xoá mềm tài khoản người dùng
 const softDeleteAdminUser = async (req, res, next) => {
   try {
     const user = await userAdminService.softDeleteAdminUser(req.user.id, req.params.id);

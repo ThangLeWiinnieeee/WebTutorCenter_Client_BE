@@ -1,9 +1,4 @@
-// Tiện ích tìm kiếm: tạo regex khớp KHÔNG dấu và KHÔNG phân biệt hoa/thường.
-// Người dùng gõ "toan" hay "Toán" đều khớp "Toán"; "ha noi" khớp "Hà Nội".
-//
-// Cách làm: bỏ dấu từ khóa rồi thay mỗi nguyên âm/ d cơ sở bằng một character class
-// gồm mọi biến thể có dấu (cả hoa lẫn thường). Nhờ vậy không phụ thuộc vào việc engine
-// regex của MongoDB có case-fold ký tự Unicode hay không.
+// Tiện ích tìm kiếm: tạo regex khớp không dấu + không phân biệt hoa/thường (vd "toan" khớp "Toán")
 
 // Nhóm biến thể tiếng Việt theo từng ký tự cơ sở (chữ thường, gồm cả ký tự gốc).
 const DIACRITIC_GROUPS = {

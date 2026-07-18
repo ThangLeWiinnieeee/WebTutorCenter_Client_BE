@@ -42,6 +42,12 @@ const classApplicationSchema = new mongoose.Schema(
       maxlength: 500,
       default: null,
     },
+    // Luồng mới: sau khi admin duyệt (approved), gia sư phải THANH TOÁN phí nhận lớp mới được
+    // mở khóa thông tin chi tiết lớp/liên hệ. false = đã duyệt nhưng chưa trả phí (hiện nút thanh toán).
+    feePaid: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

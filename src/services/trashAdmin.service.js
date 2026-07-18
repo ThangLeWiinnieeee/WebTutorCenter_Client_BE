@@ -133,12 +133,14 @@ const TRASH_ENTITIES = {
   },
 };
 
+// Lấy cấu hình xử lý theo loại dữ liệu trong thùng rác
 const getTrashEntity = (type) => {
   const entity = TRASH_ENTITIES[type];
   if (!entity) throw new AppError(MESSAGE.TRASH_TYPE_INVALID, HTTP_STATUS.BAD_REQUEST);
   return entity;
 };
 
+// Lấy danh sách mục trong thùng rác theo loại (phân trang)
 const getTrashItems = async (type, query = {}) => {
   const entity = getTrashEntity(type);
   const page = Number(query.page) || 1;
@@ -151,6 +153,7 @@ const getTrashItems = async (type, query = {}) => {
   };
 };
 
+// Khôi phục một mục từ thùng rác
 const restoreTrashItem = async (type, id) => {
   const entity = getTrashEntity(type);
   const restored = await entity.restore(id);
@@ -158,6 +161,7 @@ const restoreTrashItem = async (type, id) => {
   return { id };
 };
 
+// Xoá vĩnh viễn một mục trong thùng rác
 const purgeTrashItem = async (type, id) => {
   const entity = getTrashEntity(type);
   const purged = await entity.purge(id);
@@ -165,6 +169,7 @@ const purgeTrashItem = async (type, id) => {
   return { id };
 };
 
+// Đếm số mục trong thùng rác theo từng loại
 const getTrashCounts = async () => {
   const [users, classes, promos, reviews] = await Promise.all([
     userRepository.findDeleted({ page: 1, limit: 1 }),

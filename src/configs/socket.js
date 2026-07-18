@@ -5,6 +5,7 @@ const ROLES = require("../constants/role");
 
 let io = null;
 
+// Tên phòng riêng của một người dùng
 const userRoom = (userId) => `user:${userId}`;
 const ADMIN_ROOM = "admins";
 
@@ -41,14 +42,16 @@ const initSocket = (httpServer) => {
   return io;
 };
 
+// Lấy instance Socket.IO hiện tại
 const getIO = () => io;
 
-// Helper phát sự kiện — an toàn khi io chưa khởi tạo (vd môi trường test).
+// Phát sự kiện tới một người dùng (bỏ qua nếu io chưa khởi tạo)
 const emitToUser = (userId, event, payload) => {
   if (!io || !userId) return;
   io.to(userRoom(userId)).emit(event, payload);
 };
 
+// Phát sự kiện tới tất cả admin
 const emitToAdmins = (event, payload) => {
   if (!io) return;
   io.to(ADMIN_ROOM).emit(event, payload);

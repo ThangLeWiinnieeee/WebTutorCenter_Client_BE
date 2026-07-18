@@ -2,10 +2,7 @@ const axios = require("axios");
 const AppError = require("./AppError");
 const HTTP_STATUS = require("../constants/status");
 
-// Client dùng chung để gọi các service nội bộ (chatbot hiện tại; AI quét CCCD sắp tới...).
-// Gắn sẵn baseURL + timeout + header X-Internal-Secret; mọi lỗi mạng/timeout/HTTP đều quy về
-// AppError 503 với thông báo theo `serviceLabel` để BE không sập và FE nhận message rõ ràng.
-// Header theo từng request (vd forward Authorization của user) truyền qua config lúc gọi.
+// Tạo axios client gọi service nội bộ (gắn sẵn baseURL + timeout + secret; lỗi quy về AppError 503)
 const createInternalClient = ({ baseURL, secret = "", timeout = 20000, serviceLabel = "Dịch vụ" }) => {
   const client = axios.create({
     baseURL: String(baseURL).replace(/\/+$/, ""),

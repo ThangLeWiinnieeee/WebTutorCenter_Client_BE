@@ -1,4 +1,5 @@
 class ClassMapper {
+  // Chuyển một lớp học thành DTO
   static toDTO(classItem) {
     if (!classItem) return null;
 
@@ -38,6 +39,7 @@ class ClassMapper {
     };
   }
 
+  // Chuyển danh sách lớp học thành danh sách DTO
   static toDTOs(classes) {
     if (!Array.isArray(classes)) return [];
     return classes.map((item) => this.toDTO(item));

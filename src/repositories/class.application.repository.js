@@ -26,11 +26,13 @@ const ACTIVE_STATUSES = [
   CLASS_APPLICATION_STATUS.CANCEL_REQUESTED,
 ];
 
+// Tạo đơn nhận lớp mới
 const create = async (data) => {
   const doc = new ClassApplication(data);
   return await doc.save();
 };
 
+// Lấy chi tiết một đơn nhận lớp (kèm lớp và gia sư)
 const findById = async (id) => {
   return await ClassApplication.findById(id)
     .populate("classId", POPULATE_CLASS)
@@ -40,6 +42,7 @@ const findById = async (id) => {
     });
 };
 
+// Tìm đơn nhận lớp theo lớp và gia sư
 const findByClassAndTutor = async (classId, tutorId) => {
   return await ClassApplication.findOne({ classId, tutorId }).lean();
 };
@@ -55,9 +58,7 @@ const findApprovedByClassId = async (classId) => {
   });
 };
 
-// Đơn đang "khóa" một lớp (người đăng đã chọn / đã ghép / đang xin hủy) — cùng tiêu chí ẩn lớp
-// khỏi danh sách công khai (LOCK_STATUSES). Dùng để chặn gia sư khác nhận lớp hoặc mở chi tiết
-// bằng URL trực tiếp khi lớp đã có gia sư được chọn.
+// Tìm đơn đang khoá một lớp (đã chọn/ghép/xin huỷ gia sư)
 const findLockingByClassId = async (classId) => {
   return await ClassApplication.findOne({
     classId,
@@ -78,9 +79,7 @@ const findApprovedByClassIds = async (classIds = []) => {
   });
 };
 
-// Danh sách classId đã "khóa" (người đăng đã chọn / đã ghép / xin hủy).
-// Dùng để ẩn bài đăng khỏi feed "Lớp mới theo môn" và danh sách công khai.
-// Bài chỉ có ứng viên đang chờ (pending) vẫn hiển thị để nhận thêm gia sư.
+// Lấy danh sách classId đã khoá (đã chọn/ghép/xin huỷ gia sư) để ẩn khỏi danh sách công khai
 const distinctActiveClassIds = async () => {
   return await ClassApplication.distinct("classId", { status: { $in: LOCK_STATUSES } });
 };
@@ -105,9 +104,7 @@ const distinctClassIdsWithActiveApplications = async () => {
   return await ClassApplication.distinct("classId", { status: { $in: ACTIVE_STATUSES } });
 };
 
-// Danh sách gia sư ứng tuyển một bài đăng (cho người đăng chọn), sắp xếp theo số lớp
-// đã dạy giảm dần. Bao gồm các đơn đang chờ / đã chọn / đã bị admin từ chối để người
-// đăng nắm toàn cảnh; ẩn các đơn đã bị loại (not_selected) và đã hủy.
+// Lấy danh sách gia sư ứng tuyển một bài đăng (sắp theo số lớp đã dạy giảm dần)
 const findApplicantsByClassId = async (classId) => {
   const docs = await ClassApplication.find({
     classId,
@@ -202,6 +199,7 @@ const CANCELLATION_STATUSES = [
   CLASS_APPLICATION_STATUS.CANCELLED,
 ];
 
+// Lấy một trang đơn huỷ/yêu cầu huỷ cho admin
 const findCancellationsPage = async ({ status, page = 1, limit = 10 }) => {
   const filter =
     status && status !== "all" ? { status } : { status: { $in: CANCELLATION_STATUSES } };
@@ -217,6 +215,7 @@ const findCancellationsPage = async ({ status, page = 1, limit = 10 }) => {
     .limit(limit);
 };
 
+// Đếm số đơn huỷ theo trạng thái (yêu cầu huỷ / đã huỷ)
 const countCancellationsGrouped = async () => {
   const [cancelRequested, cancelled] = await Promise.all([
     ClassApplication.countDocuments({ status: CLASS_APPLICATION_STATUS.CANCEL_REQUESTED }),
@@ -242,6 +241,7 @@ const findByStatusPage = async ({ status, origin, page = 1, limit = 10 }) => {
     .limit(limit);
 };
 
+// Đếm số đơn nhận lớp theo trạng thái (tuỳ chọn lọc theo origin)
 const countAll = async (origin) => {
   const base = origin ? { origin } : {};
   const [pending, selected, approved, rejected] = await Promise.all([
@@ -283,6 +283,7 @@ const findInviteByClassIds = async (classIds = []) => {
   });
 };
 
+// Cập nhật một đơn nhận lớp
 const update = async (id, updateData) => {
   return await ClassApplication.findByIdAndUpdate(id, updateData, { new: true })
     .populate("classId", POPULATE_CLASS)

@@ -13,9 +13,7 @@ const NOT_DELETED = { deletedAt: null };
 // Dùng $nin nên cũng khớp các bài cũ chưa có field `status` (legacy) — coi như đang mở.
 const VISIBLE_STATUS = { status: { $nin: [CLASS_STATUS.MATCHED, CLASS_STATUS.EXPIRED] } };
 
-// Xây bộ lọc feed cá nhân hóa cho gia sư: theo môn + giới tính + trình độ + khu vực.
-// genderPrefs / levelPrefs là danh sách giá trị gia sư CHẤP NHẬN (luôn gồm "any").
-// Dùng $nin loại các giá trị cụ thể không khớp → bài đăng "any" hoặc thiếu field (legacy) vẫn hiện.
+// Dựng bộ lọc feed cá nhân hoá cho gia sư (môn + giới tính + trình độ + khu vực)
 const buildFeedMatchFilter = ({ subjects, genderPrefs, levelPrefs, provinceCode } = {}) => {
   // requestedTutorId: null → ẩn lớp mời gia sư trực tiếp khỏi feed công khai
   const filter = { ...NOT_DELETED, ...VISIBLE_STATUS, requestedTutorId: null };
@@ -36,11 +34,13 @@ const buildFeedMatchFilter = ({ subjects, genderPrefs, levelPrefs, provinceCode 
   return filter;
 };
 
+// Tạo bài đăng lớp mới
 const create = async (payload) => {
   const doc = new ClassModel(payload);
   return await doc.save();
 };
 
+// Tìm một bài đăng theo id (bỏ bài đã xoá mềm)
 const findById = async (id) => {
   return await ClassModel.findOne({ _id: id, ...NOT_DELETED }).lean();
 };
@@ -50,6 +50,7 @@ const findByClassCode = async (classCode) => {
   return await ClassModel.findOne({ classCode }).lean();
 };
 
+// Lấy danh sách bài đăng công khai (lọc, phân trang, ẩn lớp mời/đã khoá)
 const findMany = async (filters = {}, options = {}) => {
   const page = options.page || 1;
   const limit = options.limit || 6;
@@ -67,11 +68,7 @@ const findMany = async (filters = {}, options = {}) => {
   return { classes, totalItems };
 };
 
-// Lấy các bài đăng tuyển gia sư khớp tiêu chí cá nhân hóa của gia sư
-// (môn + giới tính + trình độ + khu vực). Xem buildFeedMatchFilter.
-// options.affinity: { [tên môn]: điểm } — điểm quan tâm của gia sư theo môn. Feed sắp theo
-// điểm này (cao → thấp) rồi tới bài mới nhất, để môn gia sư tương tác nhiều nổi lên đầu.
-// Dùng aggregate (thay find) để gán điểm động rồi sort TRƯỚC khi phân trang → thứ tự & trang đúng.
+// Lấy bài đăng khớp tiêu chí feed của gia sư, sắp theo điểm quan tâm rồi bài mới nhất
 // ponytail: sort chạy trên field tính động (_affinity) nên là in-memory sort trên tập đã lọc;
 // đủ ở quy mô hiện tại, cân nhắc precompute nếu số bài đăng lên rất lớn.
 const findByFeedCriteria = async (criteria = {}, options = {}) => {
@@ -122,8 +119,7 @@ const update = async (id, data) => {
   return await ClassModel.findByIdAndUpdate(id, data, { new: true }).lean();
 };
 
-// Bài đăng cần được đánh dấu hết hạn: đã tới thời gian bắt đầu, còn đang mở,
-// và không nằm trong danh sách lớp đang có đơn (pending/approved/cancel_requested).
+// Lấy bài đăng cần đánh dấu hết hạn (đã tới giờ bắt đầu, còn mở, không có đơn)
 const findExpirableClasses = async (now, excludeIds = []) => {
   const filter = {
     ...NOT_DELETED,
@@ -134,9 +130,7 @@ const findExpirableClasses = async (now, excludeIds = []) => {
   return await ClassModel.find(filter).lean();
 };
 
-// Bài đăng cần nhắc "chưa chọn gia sư": còn đang mở, sắp bắt đầu (trong khoảng (now, deadline]),
-// chưa từng được nhắc, và KHÔNG nằm trong excludeIds (lớp người đăng đã chọn gia sư/đã ghép).
-// { selectionReminderSentAt: null } cũng khớp document cũ chưa có field → không cần backfill.
+// Lấy bài đăng cần nhắc chọn gia sư (sắp bắt đầu, còn mở, chưa từng nhắc)
 const findSelectionReminderDueClasses = async (now, deadline, excludeIds = []) => {
   const filter = {
     ...NOT_DELETED,
@@ -168,6 +162,7 @@ const findManyForAdmin = async (filters = {}, options = {}) => {
   return { classes, totalItems };
 };
 
+// Lấy chi tiết một bài đăng kèm thông tin người đăng
 const findByIdPopulated = async (id) => {
   return await ClassModel.findOne({ _id: id, ...NOT_DELETED })
     .populate("createdBy", "fullName email avatar")
@@ -248,7 +243,22 @@ const deleteAllByCreatedBy = async (userId) => {
   return await ClassModel.deleteMany({ createdBy: userId });
 };
 
+// Số bài đăng (không tính đã xóa mềm) theo ngày kể từ `since` — cho biểu đồ thống kê.
+const aggregateCountByDay = async (since) => {
+  return await ClassModel.aggregate([
+    { $match: { deletedAt: null, createdAt: { $gte: since } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt", timezone: "+07:00" } },
+        count: { $sum: 1 },
+      },
+    },
+    { $project: { _id: 0, date: "$_id", count: 1 } },
+  ]);
+};
+
 module.exports = {
+  aggregateCountByDay,
   create,
   findById,
   findByClassCode,

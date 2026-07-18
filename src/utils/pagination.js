@@ -1,3 +1,4 @@
+// Tạo thông tin phân trang (tổng số trang, có trang trước/sau)
 const buildPagination = ({ page, limit, totalItems }) => {
   const totalPages = Math.max(1, Math.ceil(totalItems / limit));
   return {

@@ -21,6 +21,7 @@ const CHAT_EVENTS = {
   CONVERSATION: "chat:conversation",
 };
 
+// Lấy _id từ một tham chiếu (object đã populate hoặc id)
 const extractId = (ref) => (ref && typeof ref === "object" ? ref._id : ref);
 
 // Chuẩn hóa payload tin nhắn và đảm bảo có ít nhất text hoặc ảnh.
@@ -58,6 +59,7 @@ const getTutorConversation = async (tutorUserId, query = {}) => {
   };
 };
 
+// Gia sư/người dùng gửi tin nhắn (text hoặc ảnh) cho admin
 const sendMessageAsTutor = async (tutorUserId, input) => {
   const { text, image } = normalizeMessageInput(input);
   const conversation = await conversationRepository.findOrCreateByTutorUserId(tutorUserId);
@@ -94,6 +96,7 @@ const sendMessageAsTutor = async (tutorUserId, input) => {
   return messageDTO;
 };
 
+// Đánh dấu người dùng đã đọc hết tin nhắn
 const markTutorRead = async (tutorUserId) => {
   const conversation = await conversationRepository.findOrCreateByTutorUserId(tutorUserId);
   await conversationRepository.updateById(conversation._id, { tutorUnread: 0 });
@@ -104,6 +107,7 @@ const markTutorRead = async (tutorUserId) => {
   });
 };
 
+// Đếm số tin nhắn chưa đọc của người dùng
 const getTutorUnreadCount = async (tutorUserId) => {
   const conversation = await conversationRepository.findByTutorUserId(tutorUserId);
   return conversation?.tutorUnread || 0;
@@ -126,6 +130,7 @@ const buildAdminConversationFilter = async (keyword) => {
   return { tutorUserId: { $in: users.map((u) => u._id) } };
 };
 
+// Lấy danh sách hội thoại cho admin (lọc theo tên/email + phân trang)
 const getAdminConversations = async (query = {}) => {
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 20));
@@ -143,6 +148,7 @@ const getAdminConversations = async (query = {}) => {
   };
 };
 
+// Lấy tin nhắn của một hội thoại cho admin (phân trang)
 const getAdminConversationMessages = async (conversationId, query = {}) => {
   const conversation = await conversationRepository.findById(conversationId);
   if (!conversation) throw new AppError(MESSAGE.CHAT_CONVERSATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -189,6 +195,7 @@ const finalizeAdminMessage = async (conversation, message, preview) => {
   return messageDTO;
 };
 
+// Admin gửi tin nhắn (text hoặc ảnh) vào hội thoại
 const sendMessageAsAdmin = async (conversationId, adminUserId, input) => {
   const { text, image } = normalizeMessageInput(input);
   const conversation = await conversationRepository.findById(conversationId);
@@ -250,6 +257,7 @@ const sendCardAsAdmin = async (conversationId, adminUserId, { kind, refId }) => 
   return finalizeAdminMessage(conversation, message, preview);
 };
 
+// Đánh dấu admin đã đọc hết tin nhắn của hội thoại
 const markAdminRead = async (conversationId) => {
   const conversation = await conversationRepository.findById(conversationId);
   if (!conversation) throw new AppError(MESSAGE.CHAT_CONVERSATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -258,6 +266,7 @@ const markAdminRead = async (conversationId) => {
   emitToAdmins(CHAT_EVENTS.READ, { conversationId, viewerRole: CHAT_ROLES.ADMIN });
 };
 
+// Đếm tổng số tin nhắn chưa đọc của admin trên mọi hội thoại
 const getAdminUnreadTotal = async () => {
   const total = await conversationRepository.sumAdminUnread();
   return total;

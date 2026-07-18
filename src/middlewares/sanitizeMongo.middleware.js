@@ -1,18 +1,13 @@
-// Chống NoSQL injection: loại bỏ khỏi input mọi key có thể bị Mongoose/Mongo hiểu là
-// toán tử truy vấn (bắt đầu bằng "$", ví dụ {"$ne": null}) hoặc key chứa "." (truy cập
-// field lồng nhau), cùng các key gây prototype pollution (__proto__/constructor/prototype).
-// Chỉ đụng tới KEY của object, KHÔNG động vào giá trị chuỗi ("$100", "a.b" vẫn nguyên vẹn).
-// Mount toàn cục sau body parser để mọi req.body/query/params đều sạch trước khi tới service.
+// Chống NoSQL injection: loại bỏ key toán tử ($), key chứa dấu chấm và key gây prototype pollution
 const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 
 const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
-// Chặn DoS lồng sâu: payload lồng quá sâu có thể làm tràn call stack khi đệ quy. Không request
-// hợp lệ nào cần >32 tầng, nên vượt ngưỡng là từ chối luôn (vừa chống tràn stack vừa không tạo
-// khe bypass do bỏ qua nhánh sâu). MAX_DEPTH nhỏ hơn nhiều giới hạn stack thực tế.
+// Chặn payload lồng quá sâu (chống tràn call stack khi đệ quy)
 const MAX_DEPTH = 32;
 
+// Kiểm tra giá trị có phải object/array cần làm sạch
 const isPlainTarget = (val) => val !== null && typeof val === "object";
 
 // Đệ quy làm sạch tại chỗ; xử lý cả object lẫn array (phần tử array có thể là object độc hại).
@@ -31,6 +26,7 @@ const clean = (obj, depth = 0) => {
   return obj;
 };
 
+// Middleware làm sạch req.body/query/params trước khi tới service
 const sanitizeMongo = (req, _res, next) => {
   try {
     clean(req.body);

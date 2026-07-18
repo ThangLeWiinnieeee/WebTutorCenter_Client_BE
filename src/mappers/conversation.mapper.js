@@ -1,5 +1,5 @@
 class ConversationMapper {
-  // `viewerRole` quyết định trả về số chưa đọc theo phía nào.
+  // Chuyển một cuộc trò chuyện thành DTO (viewerRole quyết định số chưa đọc theo phía nào)
   static toDTO(conversation, viewerRole = "tutor") {
     if (!conversation) {
       throw new Error("ConversationMapper.toDTO: conversation is required");
@@ -27,6 +27,7 @@ class ConversationMapper {
     };
   }
 
+  // Chuyển danh sách cuộc trò chuyện thành danh sách DTO
   static toDTOList(conversations, viewerRole = "tutor") {
     if (!Array.isArray(conversations)) return [];
     return conversations.map((c) => ConversationMapper.toDTO(c, viewerRole));

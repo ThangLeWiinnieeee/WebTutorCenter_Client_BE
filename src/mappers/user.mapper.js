@@ -1,4 +1,5 @@
 class UserMapper {
+  // Chuyển một người dùng thành DTO trả về FE
   static toDTO(user) {
     if (!user) {
       throw new Error("UserMapper.toDTO: user is required");
@@ -23,6 +24,7 @@ class UserMapper {
     };
   }
 
+  // Chuyển danh sách người dùng thành danh sách DTO
   static toDTOs(users) {
     if (!Array.isArray(users)) return [];
     return users.map((user) => this.toDTO(user));

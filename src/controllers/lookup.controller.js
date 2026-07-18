@@ -6,7 +6,7 @@ const MESSAGE = require("../constants/message");
 const handleError = require("../utils/handleError");
 
 const lookupController = {
-  // Lấy lookup values theo type (public)
+  // Lấy danh sách giá trị lookup theo loại (public)
   async getByType(req, res, next) {
     try {
       const { type } = req.params;
@@ -21,7 +21,7 @@ const lookupController = {
     }
   },
 
-  // Lấy districts của province (public)
+  // Lấy danh sách quận/huyện theo tỉnh (public)
   async getDistrictsByProvince(req, res, next) {
     try {
       const { province } = req.params;
@@ -36,7 +36,7 @@ const lookupController = {
     }
   },
 
-  // Lấy tất cả lookup data (grouped)
+  // Lấy toàn bộ dữ liệu lookup gom theo nhóm
   async getAllGrouped(req, res, next) {
     try {
       const data = await lookupService.getAllGrouped();
@@ -50,7 +50,7 @@ const lookupController = {
     }
   },
 
-  // Admin: Create lookup
+  // Tạo một giá trị lookup (admin)
   async createLookup(req, res, next) {
     try {
       const lookup = await lookupService.createLookup(req.body);
@@ -64,7 +64,7 @@ const lookupController = {
     }
   },
 
-  // Admin: Create many lookups
+  // Tạo nhiều giá trị lookup cùng lúc (admin)
   async createManyLookups(req, res, next) {
     try {
       const { lookups } = req.body;
@@ -79,7 +79,7 @@ const lookupController = {
     }
   },
 
-  // Admin: Update lookup
+  // Cập nhật một giá trị lookup (admin)
   async updateLookup(req, res, next) {
     try {
       const { id } = req.params;
@@ -94,7 +94,7 @@ const lookupController = {
     }
   },
 
-  // Admin: Delete lookup
+  // Xoá một giá trị lookup (admin)
   async deleteLookup(req, res, next) {
     try {
       const { id } = req.params;
@@ -108,7 +108,7 @@ const lookupController = {
     }
   },
 
-  // Admin: Delete all by type
+  // Xoá toàn bộ giá trị lookup theo loại (admin)
   async deleteByType(req, res, next) {
     try {
       const { type } = req.params;

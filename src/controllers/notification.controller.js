@@ -4,8 +4,7 @@ const MESSAGE = require("../constants/message");
 const ROLES = require("../constants/role");
 const { NOTIFICATION_AUDIENCE } = require("../constants/notification");
 
-// Chỉ admin mới được đọc kênh thông báo "admin"; mọi trường hợp khác về kênh "client".
-// Ngăn người dùng thường tự đọc thông báo quản trị qua ?audience=admin.
+// Xác định kênh thông báo: chỉ admin được đọc kênh "admin", còn lại về kênh "client"
 const resolveAudience = (req) => {
   const requested = req.query.audience || req.body?.audience;
   if (requested === NOTIFICATION_AUDIENCE.ADMIN && req.user.role === ROLES.ADMIN) {
@@ -14,6 +13,7 @@ const resolveAudience = (req) => {
   return NOTIFICATION_AUDIENCE.CLIENT;
 };
 
+// Lấy danh sách thông báo của người dùng
 const getNotifications = async (req, res, next) => {
   try {
     const audience = resolveAudience(req);
@@ -30,6 +30,7 @@ const getNotifications = async (req, res, next) => {
   }
 };
 
+// Đánh dấu một thông báo là đã đọc
 const markAsRead = async (req, res, next) => {
   try {
     const notification = await notificationService.markAsRead(req.params.id, req.user.id);
@@ -42,6 +43,7 @@ const markAsRead = async (req, res, next) => {
   }
 };
 
+// Đánh dấu tất cả thông báo là đã đọc
 const markAllAsRead = async (req, res, next) => {
   try {
     await notificationService.markAllAsRead(req.user.id, resolveAudience(req));

@@ -1,3 +1,4 @@
+// Đăng ký export lazy một mapper (chỉ require khi được dùng)
 const defineLazyExport = (target, key, modulePath) => {
   Object.defineProperty(target, key, {
     enumerable: true,
@@ -17,5 +18,6 @@ defineLazyExport(mappers, "ReviewMapper", "./review.mapper");
 defineLazyExport(mappers, "ProfileChangeRequestMapper", "./profileChangeRequest.mapper");
 defineLazyExport(mappers, "ConversationMapper", "./conversation.mapper");
 defineLazyExport(mappers, "MessageMapper", "./message.mapper");
+defineLazyExport(mappers, "PaymentMapper", "./payment.mapper");
 
 module.exports = mappers;

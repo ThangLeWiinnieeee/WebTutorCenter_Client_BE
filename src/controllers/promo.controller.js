@@ -7,6 +7,7 @@ const handleError = require("../utils/handleError");
 
 // ──────────────────────────── Admin ────────────────────────────
 
+// Tạo mã giảm giá mới
 const createPromo = async (req, res, next) => {
   try {
     const promo = await promoService.createPromo(req.body);
@@ -20,6 +21,7 @@ const createPromo = async (req, res, next) => {
   }
 };
 
+// Lấy danh sách mã giảm giá cho admin
 const listPromos = async (req, res, next) => {
   try {
     const data = await promoService.listPromos(req.query);
@@ -33,6 +35,7 @@ const listPromos = async (req, res, next) => {
   }
 };
 
+// Cập nhật mã giảm giá
 const updatePromo = async (req, res, next) => {
   try {
     const promo = await promoService.updatePromo(req.params.id, req.body);
@@ -46,6 +49,7 @@ const updatePromo = async (req, res, next) => {
   }
 };
 
+// Xoá mã giảm giá
 const deletePromo = async (req, res, next) => {
   try {
     const promo = await promoService.deletePromo(req.params.id, req.user.id);
@@ -61,6 +65,7 @@ const deletePromo = async (req, res, next) => {
 
 // ──────────────────────────── Public (đã đăng nhập) ────────────────────────────
 
+// Kiểm tra và áp dụng mã giảm giá cho số tiền đơn hàng
 const validatePromo = async (req, res, next) => {
   try {
     const result = await promoService.validatePromoForAmount(req.body.code, req.body.amount, req.user.id);

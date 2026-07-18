@@ -6,6 +6,7 @@ const { PromoMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 const { generateUniqueCode } = require("../utils/code");
 
+// Chuẩn hoá mã giảm giá (viết hoa, bỏ khoảng trắng)
 const normalizeCode = (code) => String(code || "").toUpperCase().trim();
 
 // Kiểm tra ràng buộc logic giữa các field trước khi lưu
@@ -28,6 +29,7 @@ const assertValidShape = (data) => {
 
 // ──────────────────────────── Admin CRUD ────────────────────────────
 
+// Tạo mã giảm giá mới (kiểm tra trùng mã)
 const createPromo = async (payload) => {
   const data = { ...payload, code: normalizeCode(payload.code) };
   assertValidShape(data);
@@ -44,6 +46,7 @@ const createPromo = async (payload) => {
   return PromoMapper.toDTO(created);
 };
 
+// Lấy danh sách mã giảm giá toàn cục cho admin (lọc + phân trang)
 const listPromos = async (query = {}) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -62,6 +65,7 @@ const listPromos = async (query = {}) => {
   };
 };
 
+// Cập nhật mã giảm giá (kiểm tra trùng mã + ràng buộc logic)
 const updatePromo = async (id, payload) => {
   const promo = await promoRepository.findById(id);
   if (!promo) throw new AppError(MESSAGE.PROMO_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -106,9 +110,7 @@ const computeDiscount = (promo, amount) => {
   return Math.max(0, Math.round(discount));
 };
 
-// Kiểm tra hợp lệ + tính giảm; throw AppError (422) nếu không dùng được.
-// `userId` (nếu có) dùng để kiểm tra quyền sở hữu voucher cá nhân.
-// Trả về document promo (mongoose) để service khác có thể tăng usedCount.
+// Kiểm tra mã hợp lệ và tính số tiền giảm; trả document promo (throw AppError nếu không dùng được)
 const evaluatePromo = async (code, amount, userId = null) => {
   const normalized = normalizeCode(code);
   if (!normalized) throw new AppError(MESSAGE.PROMO_CODE_REQUIRED, HTTP_STATUS.BAD_REQUEST);
@@ -163,6 +165,7 @@ const REWARD_VOUCHER = {
   validityMonths: 2,
 };
 
+// Sinh mã voucher ngẫu nhiên không trùng
 const generateUniqueVoucherCode = () =>
   generateUniqueCode({
     generate: () => `RW${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
@@ -197,6 +200,7 @@ const voucherStatus = (promo) => {
   return "active";
 };
 
+// Lấy danh sách voucher cá nhân trong kho mã của người dùng
 const listMyVouchers = async (userId, query = {}) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;

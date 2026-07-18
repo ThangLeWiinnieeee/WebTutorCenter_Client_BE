@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 // algorithm-confusion (vd token giả với alg "none" hoặc RS256 lợi dụng public key).
 const JWT_ALG = "HS256";
 
+// Tạo access token (JWT, mặc định hết hạn 15 phút)
 const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
     algorithm: JWT_ALG,
@@ -11,6 +12,7 @@ const generateAccessToken = (payload) => {
   });
 };
 
+// Tạo refresh token (JWT, mặc định hết hạn 7 ngày)
 const generateRefreshToken = (payload) => {
   return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, {
     algorithm: JWT_ALG,
@@ -18,10 +20,12 @@ const generateRefreshToken = (payload) => {
   });
 };
 
+// Xác thực access token
 const verifyAccessToken = (token) => {
   return jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, { algorithms: [JWT_ALG] });
 };
 
+// Xác thực refresh token
 const verifyRefreshToken = (token) => {
   return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, { algorithms: [JWT_ALG] });
 };
@@ -35,6 +39,7 @@ const generateResetToken = (payload) => {
   );
 };
 
+// Xác thực reset token và kiểm tra đúng mục đích đổi mật khẩu
 const verifyResetToken = (token) => {
   const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, { algorithms: [JWT_ALG] });
   if (decoded.purpose !== "reset_password") {

@@ -12,6 +12,7 @@ const { TUTOR_STATUS } = require("../constants/tutor");
 const { TutorMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 
+// Lấy danh sách gia sư chờ duyệt (kèm ảnh giấy tờ để đối chiếu)
 const getPendingTutors = async (query = {}) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -26,6 +27,7 @@ const getPendingTutors = async (query = {}) => {
   };
 };
 
+// Duyệt hồ sơ gia sư (nâng vai trò người dùng + gửi thông báo)
 const approveTutor = async (tutorId) => {
   const tutor = await tutorRepository.findById(tutorId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -43,6 +45,7 @@ const approveTutor = async (tutorId) => {
   return await TutorMapper.toDTO(updated, null);
 };
 
+// Từ chối hồ sơ gia sư (kèm lý do + gửi thông báo)
 const rejectTutor = async (tutorId, rejectionReason) => {
   const tutor = await tutorRepository.findById(tutorId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -59,6 +62,7 @@ const rejectTutor = async (tutorId, rejectionReason) => {
   return await TutorMapper.toDTO(updated, null);
 };
 
+// Tổng hợp số liệu tổng quan cho dashboard admin (gia sư, đơn, yêu cầu chờ xử lý)
 const getDashboardStats = async () => {
   const [
     pendingCount,

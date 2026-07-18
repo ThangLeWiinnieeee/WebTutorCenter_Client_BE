@@ -7,6 +7,7 @@ const { LOGIN_FREE_ATTEMPTS } = require("../middlewares/rateLimit.middleware");
 
 const handleError = require("../utils/handleError");
 
+// Đăng ký tài khoản mới và gửi OTP xác thực về email
 const register = async (req, res, next) => {
   try {
     const { email } = await authService.register(req.body);
@@ -21,6 +22,7 @@ const register = async (req, res, next) => {
   }
 };
 
+// Xác thực OTP đăng ký và cấp token đăng nhập
 const verifyOtp = async (req, res, next) => {
   try {
     const { accessToken, refreshToken, user } = await authService.verifyOtp(req.body);
@@ -37,6 +39,7 @@ const verifyOtp = async (req, res, next) => {
   }
 };
 
+// Gửi lại mã OTP đăng ký
 const resendOtp = async (req, res, next) => {
   try {
     const { email } = await authService.resendOtp(req.body);
@@ -51,6 +54,7 @@ const resendOtp = async (req, res, next) => {
   }
 };
 
+// Đăng nhập bằng tài khoản Google
 const googleLogin = async (req, res, next) => {
   try {
     const { accessToken, refreshToken, user } = await authService.googleLogin(req.body);
@@ -67,6 +71,7 @@ const googleLogin = async (req, res, next) => {
   }
 };
 
+// Đăng nhập bằng email/mật khẩu
 const login = async (req, res, next) => {
   try {
     const { accessToken, refreshToken, user } = await authService.login(req.body);
@@ -93,6 +98,7 @@ const login = async (req, res, next) => {
   }
 };
 
+// Đăng xuất và xoá refresh token
 const logout = async (req, res, next) => {
   try {
     await authService.logout(req.user.id);
@@ -108,6 +114,7 @@ const logout = async (req, res, next) => {
   }
 };
 
+// Cấp lại access token mới từ refresh token
 const refreshToken = async (req, res, next) => {
   try {
     const token = req.cookies?.refreshToken;
@@ -125,6 +132,7 @@ const refreshToken = async (req, res, next) => {
   }
 };
 
+// Gửi OTP đặt lại mật khẩu về email khi quên mật khẩu
 const forgotPassword = async (req, res, next) => {
   try {
     const { email } = await authService.forgotPassword(req.body);
@@ -139,6 +147,7 @@ const forgotPassword = async (req, res, next) => {
   }
 };
 
+// Xác thực OTP quên mật khẩu và cấp reset token
 const verifyForgotPasswordOtp = async (req, res, next) => {
   try {
     const { resetToken } = await authService.verifyForgotPasswordOtp(req.body);
@@ -153,6 +162,7 @@ const verifyForgotPasswordOtp = async (req, res, next) => {
   }
 };
 
+// Đặt lại mật khẩu mới bằng reset token
 const resetPassword = async (req, res, next) => {
   try {
     await authService.resetPassword(req.body);

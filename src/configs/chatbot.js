@@ -1,7 +1,6 @@
 const { createInternalClient } = require("../utils/serviceClient");
 
-// Client gọi chatbot-service (FastAPI riêng, xem ../../chatbot-service). Cấu hình đọc từ .env.
-// Tách khỏi service để chỗ tạo/cấu hình client gọn một nơi (giống configs/cloudinary, socket…).
+// Client gọi chatbot-service (FastAPI riêng), cấu hình đọc từ .env
 const chatbotClient = createInternalClient({
   baseURL: process.env.CHATBOT_URL || "http://localhost:8001",
   secret: process.env.CHATBOT_INTERNAL_SECRET || "",

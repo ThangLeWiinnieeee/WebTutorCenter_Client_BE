@@ -5,6 +5,7 @@ const MESSAGE = require("../constants/message");
 
 const handleError = require("../utils/handleError");
 
+// Lấy danh sách đơn nhận lớp cho admin
 const getClassApplications = async (req, res, next) => {
   try {
     const result = await classApplicationAdminService.getClassApplications(req.query);
@@ -18,6 +19,7 @@ const getClassApplications = async (req, res, next) => {
   }
 };
 
+// Lấy thống kê đơn nhận lớp
 const getClassApplicationStats = async (req, res, next) => {
   try {
     const stats = await classApplicationAdminService.getClassApplicationStats(req.query);
@@ -31,6 +33,7 @@ const getClassApplicationStats = async (req, res, next) => {
   }
 };
 
+// Duyệt đơn nhận lớp
 const approveClassApplication = async (req, res, next) => {
   try {
     const application = await classApplicationAdminService.approveClassApplication(req.params.id);
@@ -44,6 +47,7 @@ const approveClassApplication = async (req, res, next) => {
   }
 };
 
+// Từ chối đơn nhận lớp
 const rejectClassApplication = async (req, res, next) => {
   try {
     const application = await classApplicationAdminService.rejectClassApplication(req.params.id, req.body.rejectionReason);

@@ -1,11 +1,11 @@
 const { Message } = require("../models/message.model");
 
+// Tạo một tin nhắn mới
 const create = async ({ conversationId, senderId, senderRole, content, imageUrl = null, card = null }) => {
   return Message.create({ conversationId, senderId, senderRole, content, imageUrl, card });
 };
 
-// Một trang tin nhắn của hội thoại. Lấy mới nhất trước rồi đảo lại để FE render
-// theo thứ tự thời gian tăng dần (cũ → mới).
+// Lấy một trang tin nhắn của hội thoại (sắp theo thời gian tăng dần)
 const findByConversationPage = async ({ conversationId, page = 1, limit = 30 }) => {
   const skip = (Math.max(1, page) - 1) * limit;
   const docs = await Message.find({ conversationId })
@@ -16,6 +16,7 @@ const findByConversationPage = async ({ conversationId, page = 1, limit = 30 }) 
   return docs.reverse();
 };
 
+// Đếm số tin nhắn của một hội thoại
 const countByConversation = async (conversationId) => {
   return Message.countDocuments({ conversationId });
 };

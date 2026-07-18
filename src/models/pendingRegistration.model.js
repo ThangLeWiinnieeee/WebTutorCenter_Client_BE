@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 const ROLES = require("../constants/role");
 const { PHONE_REGEX } = require("../constants/tutor");
 
-// Thời gian sống của dữ liệu đăng ký tạm (chưa xác thực OTP).
-// Phải dài hơn vòng đời OTP (kể cả khi gửi lại) để user vẫn xác thực được.
+// Thời gian sống của dữ liệu đăng ký tạm — phải dài hơn vòng đời OTP để user vẫn xác thực được
 const PENDING_EXPIRES_MINUTES = 60;
 
+// Tính thời điểm hết hạn của dữ liệu đăng ký tạm
 const getPendingExpiry = () => {
   const expires = new Date();
   expires.setMinutes(expires.getMinutes() + PENDING_EXPIRES_MINUTES);

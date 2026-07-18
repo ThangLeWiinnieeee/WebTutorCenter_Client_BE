@@ -13,9 +13,12 @@ const AppError = require("../utils/AppError");
 const { UserMapper } = require("../mappers");
 const { OAuth2Client } = require("google-auth-library");
 
-// Xác thực ID token (credential) từ nút <GoogleLogin> mặc định của Google Identity Services.
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+// Client ID verify Google ID token phải trùng client ID FE dùng phát token;
+// tách khỏi GOOGLE_CLIENT_ID (Gmail API), fallback về GOOGLE_CLIENT_ID cho cấu hình cũ.
+const GOOGLE_LOGIN_CLIENT_ID = process.env.GOOGLE_LOGIN_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+const googleClient = new OAuth2Client(GOOGLE_LOGIN_CLIENT_ID);
 
+// Cấp access token + refresh token và lưu refresh token cho người dùng
 const _issueTokens = async (user) => {
   const payload = { id: user._id, email: user.email, role: user.role };
   const accessToken = generateAccessToken(payload);
@@ -36,6 +39,7 @@ const _assertOtpMatches = async (otpDoc, otp, { email, type }) => {
   throw new AppError(MESSAGE.OTP_INVALID, HTTP_STATUS.BAD_REQUEST);
 };
 
+// Tạo OTP mới và gửi qua email (đăng ký hoặc quên mật khẩu)
 const _createAndSendOtp = async ({ email, fullName, type }) => {
   const existingOtp = await otpRepository.findLatestActiveByEmailAndType(email, type);
 
@@ -58,6 +62,7 @@ const _createAndSendOtp = async ({ email, fullName, type }) => {
 
 // ─── REGISTER ───
 
+// Đăng ký tài khoản mới: lưu tạm thông tin và gửi OTP xác thực
 const register = async ({ fullName, email, password, role, phone, dateOfBirth }) => {
   const existingUser = await userRepository.findByEmail(email);
 
@@ -93,6 +98,7 @@ const register = async ({ fullName, email, password, role, phone, dateOfBirth })
 
 // ─── VERIFY OTP ───
 
+// Xác thực OTP đăng ký: tạo tài khoản trong DB và cấp token
 const verifyOtp = async ({ email, otp, type = OTP_TYPE.REGISTER }) => {
   // Đã có tài khoản đã xác thực với email này → không cho xác thực lại
   const existingUser = await userRepository.findByEmail(email);
@@ -139,6 +145,7 @@ const verifyOtp = async ({ email, otp, type = OTP_TYPE.REGISTER }) => {
 
 // ─── RESEND OTP ───
 
+// Gửi lại mã OTP (đăng ký hoặc quên mật khẩu)
 const resendOtp = async ({ email, type = OTP_TYPE.REGISTER }) => {
   if (type === OTP_TYPE.REGISTER) {
     // Dữ liệu đăng ký nằm ở bảng tạm, chưa có trong users
@@ -173,6 +180,7 @@ const resendOtp = async ({ email, type = OTP_TYPE.REGISTER }) => {
 
 // ─── FORGOT PASSWORD ───
 
+// Gửi OTP đặt lại mật khẩu về email (không tiết lộ email có tồn tại hay không)
 const forgotPassword = async ({ email }) => {
   const user = await userRepository.findByEmail(email);
 
@@ -191,6 +199,7 @@ const forgotPassword = async ({ email }) => {
 
 // ─── VERIFY FORGOT PASSWORD OTP ───
 
+// Xác thực OTP quên mật khẩu và cấp reset token
 const verifyForgotPasswordOtp = async ({ email, otp }) => {
   const user = await userRepository.findByEmail(email);
   if (!user || !user.isVerified) {
@@ -214,6 +223,7 @@ const verifyForgotPasswordOtp = async ({ email, otp }) => {
 
 // ─── RESET PASSWORD ───
 
+// Đặt lại mật khẩu mới bằng reset token
 const resetPassword = async ({ resetToken, newPassword }) => {
   let decoded;
   try {
@@ -237,6 +247,7 @@ const resetPassword = async ({ resetToken, newPassword }) => {
 
 // ─── LOGIN ───
 
+// Đăng nhập bằng email/mật khẩu và cấp token
 const login = async ({ email, password }) => {
   const user = await userRepository.findByEmail(email, true);
   if (!user) {
@@ -271,12 +282,14 @@ const login = async ({ email, password }) => {
 
 // ─── LOGOUT ───
 
+// Đăng xuất: xoá refresh token của người dùng
 const logout = async (userId) => {
   await userRepository.updateRefreshToken(userId, null);
 };
 
 // ─── REFRESH TOKEN ───
 
+// Cấp lại access token mới từ refresh token hợp lệ
 const refreshToken = async (token) => {
   if (!token) {
     throw new AppError(MESSAGE.REFRESH_TOKEN_INVALID, HTTP_STATUS.UNAUTHORIZED);
@@ -299,12 +312,13 @@ const refreshToken = async (token) => {
 
 // ─── GOOGLE LOGIN ───
 
+// Đăng nhập/đăng ký bằng Google: xác thực credential và cấp token
 const googleLogin = async ({ credential }) => {
   let payload;
   try {
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: GOOGLE_LOGIN_CLIENT_ID,
     });
     payload = ticket.getPayload();
   } catch {

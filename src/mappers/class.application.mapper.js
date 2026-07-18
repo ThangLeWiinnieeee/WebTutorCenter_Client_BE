@@ -1,6 +1,8 @@
 const { CLASS_APPLICATION_STATUS } = require("../constants/classApplication");
+const { computeClassFee } = require("../constants/payment");
 
 class ClassApplicationMapper {
+  // Chuyển một đơn nhận lớp thành DTO đầy đủ (cho admin)
   static toDTO(application) {
     if (!application) return null;
 
@@ -64,15 +66,13 @@ class ClassApplicationMapper {
     };
   }
 
+  // Chuyển danh sách đơn nhận lớp thành danh sách DTO
   static toDTOs(applications) {
     if (!Array.isArray(applications)) return [];
     return applications.map((a) => this.toDTO(a));
   }
 
-  /**
-   * DTO gọn cho người đăng xem & chọn gia sư ứng tuyển.
-   * Chỉ gồm thông tin gia sư cần để quyết định (không lộ thông tin riêng tư của lớp).
-   */
+  // DTO gọn cho người đăng xem và chọn gia sư ứng tuyển (không lộ thông tin riêng của lớp)
   static toApplicantDTO(application) {
     if (!application) return null;
     const tutor = application.tutorId || {};
@@ -97,16 +97,13 @@ class ClassApplicationMapper {
     };
   }
 
+  // Chuyển danh sách ứng viên thành danh sách DTO
   static toApplicantDTOs(applications) {
     if (!Array.isArray(applications)) return [];
     return applications.map((a) => this.toApplicantDTO(a));
   }
 
-  /**
-   * DTO thông tin gia sư đã được admin duyệt nhận lớp — KÈM số điện thoại liên hệ.
-   * Chỉ dùng cho người đăng (chủ bài) / admin xem trong "Bài đăng của tôi" và chi tiết
-   * bài đã ghép; KHÔNG dùng ở danh sách ứng tuyển (để không lộ SĐT trước khi được duyệt).
-   */
+  // DTO gia sư đã được duyệt nhận lớp, kèm SĐT liên hệ (chỉ cho người đăng/admin)
   static toMatchedTutorDTO(application) {
     if (!application) return null;
     const tutor = application.tutorId || {};
@@ -126,17 +123,18 @@ class ClassApplicationMapper {
     };
   }
 
-  /**
-   * DTO cho gia sư xem các lớp mình đã nhận.
-   * Chỉ khi đơn đã được CHẤP NHẬN (approved) mới trả về thông tin chi tiết/riêng tư
-   * của lớp (SĐT liên hệ, mô tả đầy đủ, khung giờ cụ thể). Các trạng thái khác chỉ
-   * trả về thông tin công khai.
-   */
+  // DTO lớp cho gia sư xem đơn của mình (chỉ mở thông tin riêng khi đã duyệt và trả phí)
   static toMineDTO(application) {
     if (!application) return null;
 
     const classItem = application.classId || {};
-    const isUnlocked = application.status === CLASS_APPLICATION_STATUS.APPROVED;
+    // Luồng mới: đã duyệt (approved) CHƯA đủ để mở khóa — phải đã thanh toán phí nhận lớp (feePaid).
+    const isApproved = application.status === CLASS_APPLICATION_STATUS.APPROVED;
+    const feePaid = Boolean(application.feePaid);
+    const isUnlocked = isApproved && feePaid;
+    // Đã duyệt nhưng chưa trả phí → FE hiện nút "Thanh toán phí nhận lớp" kèm số tiền.
+    const needsFeePayment = isApproved && !feePaid;
+    const feeAmount = computeClassFee(classItem.finalFeePerMonth ?? classItem.feePerMonth);
 
     const publicInfo = {
       id: classItem._id,
@@ -182,22 +180,23 @@ class ClassApplicationMapper {
       rejectionReason: application.rejectionReason ?? null,
       cancellationReason: application.cancellationReason ?? null,
       isUnlocked,
+      // Thanh toán phí nhận lớp
+      feePaid,
+      needsFeePayment,
+      feeAmount,
       createdAt: application.createdAt,
       updatedAt: application.updatedAt,
       classItem: { ...publicInfo, ...privateInfo },
     };
   }
 
+  // Chuyển danh sách đơn của gia sư thành danh sách DTO
   static toMineDTOs(applications) {
     if (!Array.isArray(applications)) return [];
     return applications.map((a) => this.toMineDTO(a));
   }
 
-  /**
-   * DTO lời mời dạy lớp cho gia sư xem & ra quyết định (đồng ý / từ chối).
-   * Trả đủ thông tin để gia sư quyết định (mô tả, khung giờ, khu vực, học phí) nhưng
-   * KHÔNG lộ SĐT liên hệ và địa chỉ chi tiết — chỉ hiện sau khi admin duyệt.
-   */
+  // DTO lời mời dạy cho gia sư quyết định đồng ý/từ chối (không lộ SĐT và địa chỉ chi tiết)
   static toInvitationDTO(application) {
     if (!application) return null;
     const classItem = application.classId || {};
@@ -234,16 +233,13 @@ class ClassApplicationMapper {
     };
   }
 
+  // Chuyển danh sách lời mời thành danh sách DTO
   static toInvitationDTOs(applications) {
     if (!Array.isArray(applications)) return [];
     return applications.map((a) => this.toInvitationDTO(a));
   }
 
-  /**
-   * DTO gia sư được mời (gắn vào "Bài đăng của tôi" để người đăng theo dõi kết quả mời).
-   * Gồm trạng thái lời mời + lý do từ chối (nếu có). Không kèm SĐT — khi đã duyệt thì
-   * người đăng xem qua matchedTutor (đã có SĐT).
-   */
+  // DTO gia sư được mời để người đăng theo dõi kết quả mời (trạng thái + lý do từ chối)
   static toInvitedTutorDTO(application) {
     if (!application) return null;
     const tutor = application.tutorId || {};

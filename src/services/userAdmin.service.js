@@ -6,6 +6,7 @@ const { UserMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 const { diacriticInsensitiveRegex } = require("../utils/search");
 
+// Dựng bộ lọc tìm kiếm người dùng cho admin (tên/email/điện thoại + vai trò/trạng thái)
 const buildUserFilters = ({ keyword, role, isActive, isVerified }) => {
   const filters = {};
   if (keyword) {
@@ -19,6 +20,7 @@ const buildUserFilters = ({ keyword, role, isActive, isVerified }) => {
   return filters;
 };
 
+// Lấy danh sách người dùng cho admin (lọc + phân trang)
 const getAdminUsers = async (query) => {
   const page = query.page || 1;
   const limit = query.limit || 10;
@@ -30,6 +32,7 @@ const getAdminUsers = async (query) => {
   };
 };
 
+// Cập nhật thông tin người dùng (admin), có kiểm soát việc cấp/thu quyền admin
 const updateAdminUser = async (adminUserId, targetUserId, payload) => {
   const updateData = { fullName: payload.fullName, isVerified: payload.isVerified };
   if (payload.phone !== undefined) {
@@ -51,6 +54,7 @@ const updateAdminUser = async (adminUserId, targetUserId, payload) => {
   return UserMapper.toDTO(user);
 };
 
+// Bật/tắt trạng thái hoạt động của tài khoản (chặn admin tự khoá mình)
 const updateAdminUserStatus = async (adminUserId, targetUserId, isActive) => {
   if (String(adminUserId) === String(targetUserId) && isActive === false) {
     throw new AppError(MESSAGE.ADMIN_SELF_DEACTIVATE, HTTP_STATUS.BAD_REQUEST);
@@ -60,6 +64,7 @@ const updateAdminUserStatus = async (adminUserId, targetUserId, isActive) => {
   return UserMapper.toDTO(user);
 };
 
+// Xoá mềm tài khoản người dùng (chặn admin tự xoá mình)
 const softDeleteAdminUser = async (adminUserId, targetUserId) => {
   if (String(adminUserId) === String(targetUserId)) {
     throw new AppError(MESSAGE.ADMIN_SELF_DELETE, HTTP_STATUS.BAD_REQUEST);

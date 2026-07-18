@@ -36,6 +36,7 @@ const markTrusted = (dtos, trustedSet) => {
   return dtos;
 };
 
+// Đăng ký hồ sơ gia sư (kiểm tra môn học, năm tốt nghiệp, tạo hồ sơ chờ duyệt)
 const registerTutor = async (userId, tutorData) => {
   const user = await userRepository.findById(userId);
   if (!user) {
@@ -95,6 +96,7 @@ const registerTutor = async (userId, tutorData) => {
   return await TutorMapper.toDTO(tutor, user, null, { includeDocuments: true });
 };
 
+// Lấy hồ sơ gia sư của người dùng hiện tại (kèm cờ uy tín)
 const getTutorProfile = async (userId) => {
   const tutor = await tutorRepository.findByUserId(userId);
   if (!tutor) {

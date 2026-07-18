@@ -7,6 +7,7 @@ const HTTP_STATUS = require("../constants/status");
 
 const handleError = require("../utils/handleError");
 
+// Đăng ký hồ sơ gia sư
 const registerTutor = async (req, res, next) => {
   try {
     const tutor = await tutorService.registerTutor(req.user.id, req.body);
@@ -21,6 +22,7 @@ const registerTutor = async (req, res, next) => {
   }
 };
 
+// Lấy hồ sơ gia sư của người dùng hiện tại
 const getTutorProfile = async (req, res, next) => {
   try {
     const tutor = await tutorService.getTutorProfile(req.user.id);

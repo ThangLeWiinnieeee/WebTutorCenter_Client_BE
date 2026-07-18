@@ -1,17 +1,20 @@
 const User = require("../models/user.model");
 
+// Tìm người dùng theo email (tuỳ chọn lấy kèm mật khẩu)
 const findByEmail = async (email, includePassword = false) => {
   const query = User.findOne({ email });
   if (includePassword) query.select("+password");
   return await query;
 };
 
+// Tìm người dùng theo id (bỏ tài khoản đã xoá mềm)
 const findById = async (id, includePassword = false) => {
   const query = User.findOne({ _id: id, deletedAt: null });
   if (includePassword) query.select("+password");
   return await query;
 };
 
+// Lấy danh sách người dùng cho admin (lọc + phân trang)
 const findManyForAdmin = async (filters, { page, limit }) => {
   const skip = (page - 1) * limit;
   const queryFilters = { deletedAt: null, ...filters };
@@ -26,29 +29,33 @@ const findManyForAdmin = async (filters, { page, limit }) => {
   return { users, totalItems };
 };
 
+// Tạo người dùng mới
 const create = async (userData) => {
   const user = new User(userData);
   return await user.save();
 };
 
+// Cập nhật refresh token của người dùng
 const updateRefreshToken = async (userId, refreshToken) => {
   return await User.findByIdAndUpdate(userId, { refreshToken }, { new: true });
 };
 
+// Tìm người dùng theo refresh token
 const findByRefreshToken = async (refreshToken) => {
   return await User.findOne({ refreshToken }).select("+refreshToken");
 };
 
-// Xóa hẳn tài khoản local chưa xác thực (dữ liệu sót lại từ luồng đăng ký cũ),
-// để email được giải phóng cho luồng đăng ký mới (lưu tạm + xác thực OTP).
+// Xoá hẳn tài khoản local chưa xác thực để giải phóng email cho đăng ký mới
 const hardDeleteUnverifiedLocal = async (userId) => {
   return await User.findOneAndDelete({ _id: userId, isVerified: false });
 };
 
+// Cập nhật mật khẩu của người dùng
 const updatePassword = async (userId, hashedPassword) => {
   return await User.findByIdAndUpdate(userId, { password: hashedPassword }, { new: true });
 };
 
+// Cập nhật thông tin cá nhân của người dùng
 const updateProfile = async (userId, updateData) => {
   return await User.findOneAndUpdate(
     { _id: userId, deletedAt: null },
@@ -57,14 +64,17 @@ const updateProfile = async (userId, updateData) => {
   );
 };
 
+// Cập nhật vai trò của người dùng
 const updateRole = async (userId, role) => {
   return await User.findOneAndUpdate({ _id: userId, deletedAt: null }, { role }, { new: true });
 };
 
+// Cập nhật trạng thái hoạt động của người dùng
 const updateStatus = async (userId, isActive) => {
   return await User.findOneAndUpdate({ _id: userId, deletedAt: null }, { isActive }, { new: true });
 };
 
+// Cập nhật thông tin người dùng (từ admin)
 const updateByAdmin = async (userId, updateData) => {
   return await User.findOneAndUpdate(
     { _id: userId, deletedAt: null },
@@ -73,6 +83,7 @@ const updateByAdmin = async (userId, updateData) => {
   );
 };
 
+// Xoá mềm tài khoản người dùng (từ admin)
 const softDeleteByAdmin = async (userId, adminUserId) => {
   return await User.findOneAndUpdate(
     { _id: userId, deletedAt: null },
@@ -86,12 +97,14 @@ const softDeleteByAdmin = async (userId, adminUserId) => {
   );
 };
 
+// Lấy tất cả người dùng đang hoạt động theo vai trò
 const findAllByRole = async (role) => {
   return await User.find({ role, deletedAt: null, isActive: true }).lean();
 };
 
 // ──────────────────────────── Thùng rác (soft-delete) ────────────────────────────
 
+// Lấy danh sách tài khoản trong thùng rác
 const findDeleted = async ({ page, limit }) => {
   const skip = (page - 1) * limit;
   const filter = { deletedAt: { $ne: null } };

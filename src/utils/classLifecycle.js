@@ -8,11 +8,11 @@ const EXPIRY_INTERVAL_MS = 15 * 60 * 1000; // quét mỗi 15 phút
 const FIRST_RUN_DELAY_MS = 15 * 1000; // chạy lần đầu sau 15s để DB ổn định
 const SELECTION_REMINDER_WINDOW_MS = 2 * 24 * 60 * 60 * 1000; // nhắc khi còn <= 2 ngày tới ngày bắt đầu
 
+// Định dạng ngày bắt đầu theo dd/mm/yyyy
 const formatStartDate = (date) =>
   new Date(date).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 
-// Đánh dấu hết hạn các bài đăng đã tới giờ học mà chưa có gia sư nhận, và báo cho người đăng.
-// Bỏ qua các lớp đang có đơn (pending/approved/cancel_requested) — vẫn còn cơ hội được ghép.
+// Đánh dấu hết hạn các lớp quá giờ chưa có gia sư nhận và báo cho người đăng
 const expireOverdueClasses = async () => {
   const activeClassIds = await classApplicationRepository.distinctActiveClassIds();
   const classes = await classRepository.findExpirableClasses(new Date(), activeClassIds);
@@ -33,9 +33,7 @@ const expireOverdueClasses = async () => {
   return expired;
 };
 
-// Nhắc người đăng chọn gia sư gấp khi lớp sắp bắt đầu (còn <= 2 ngày) mà vẫn chưa chọn ai.
-// "Chưa chọn" = lớp còn mở và không có đơn selected/approved/cancel_requested (distinctActiveClassIds).
-// Đánh dấu selectionReminderSentAt để chỉ nhắc 1 lần cho mỗi bài đăng.
+// Nhắc người đăng chọn gia sư khi lớp sắp bắt đầu mà chưa chọn ai (chỉ nhắc 1 lần mỗi bài)
 const remindUnselectedClasses = async () => {
   const now = new Date();
   const deadline = new Date(now.getTime() + SELECTION_REMINDER_WINDOW_MS);
@@ -60,6 +58,7 @@ const remindUnselectedClasses = async () => {
 };
 
 let running = false;
+// Chạy một lượt quét: đánh dấu hết hạn + nhắc chọn gia sư (tránh chạy chồng)
 const runExpirySweep = async () => {
   if (running) return; // tránh chạy chồng nếu lần trước chưa xong
   running = true;
@@ -75,6 +74,7 @@ const runExpirySweep = async () => {
   }
 };
 
+// Khởi động scheduler quét vòng đời bài đăng định kỳ
 const startClassLifecycleScheduler = () => {
   setTimeout(runExpirySweep, FIRST_RUN_DELAY_MS);
   const timer = setInterval(runExpirySweep, EXPIRY_INTERVAL_MS);
