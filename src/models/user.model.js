@@ -67,9 +67,22 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    refreshToken: {
-      type: String,
-      default: null,
+    // Mỗi thiết bị đăng nhập = 1 session giữ refresh token riêng → đăng nhập song song
+    // nhiều máy, và thu hồi được đúng một máy mà không đá các máy còn lại.
+    sessions: {
+      type: [
+        new mongoose.Schema(
+          {
+            token: { type: String, required: true },
+            deviceName: { type: String, default: "Thiết bị không xác định" },
+            // desktop | tablet | phone — quyết định icon hiển thị ở app
+            deviceType: { type: String, enum: ["desktop", "tablet", "phone"], default: "desktop" },
+            lastUsedAt: { type: Date, default: Date.now },
+          },
+          { timestamps: { createdAt: true, updatedAt: false } }
+        ),
+      ],
+      default: [],
       select: false,
     },
     deletedAt: {

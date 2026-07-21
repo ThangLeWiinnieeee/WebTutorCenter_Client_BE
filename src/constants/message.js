@@ -12,6 +12,12 @@ const MESSAGE = {
   // User
   USER_NOT_FOUND: "Không tìm thấy người dùng",
   UPDATE_PROFILE_SUCCESS: "Cập nhật thông tin cá nhân thành công",
+  CHANGE_PASSWORD_SUCCESS: "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.",
+  CURRENT_PASSWORD_INCORRECT: "Mật khẩu hiện tại không đúng",
+  SESSION_LIST_SUCCESS: "Lấy danh sách phiên đăng nhập thành công",
+  SESSION_NOT_FOUND: "Phiên đăng nhập không tồn tại hoặc đã bị thu hồi",
+  SESSION_REVOKED: "Đã đăng xuất thiết bị",
+  SESSIONS_REVOKED: "Đã đăng xuất khỏi tất cả thiết bị",
   UPLOAD_AVATAR_SUCCESS: "Cập nhật ảnh đại diện thành công",
   UPLOAD_AVATAR_FAILED: "Tải ảnh lên thất bại",
   EMAIL_ALREADY_EXISTS: "Email đã được sử dụng",

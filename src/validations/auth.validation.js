@@ -3,11 +3,10 @@ const ROLES = require("../constants/role");
 const { PHONE_REGEX } = require("../constants/tutor");
 const { validate } = require("../middlewares/validate.middleware");
 
-// Mật khẩu: >=10 ký tự, có ít nhất 1 chữ in hoa và 1 ký tự đặc biệt.
-// Độ dài để .min(10) xử lý; regex chỉ kiểm tra độ phức tạp (in hoa + đặc biệt).
-const PASSWORD_COMPLEXITY_REGEX = /^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).+$/;
-const PASSWORD_COMPLEXITY_MESSAGE =
-  "Mật khẩu phải có ít nhất 1 chữ in hoa và 1 ký tự đặc biệt";
+const {
+  PASSWORD_COMPLEXITY_REGEX,
+  PASSWORD_COMPLEXITY_MESSAGE,
+} = require("../constants/password");
 
 const registerSchema = Joi.object({
   fullName: Joi.string().min(2).max(100).required().messages({

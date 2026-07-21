@@ -35,14 +35,46 @@ const create = async (userData) => {
   return await user.save();
 };
 
-// Cập nhật refresh token của người dùng
-const updateRefreshToken = async (userId, refreshToken) => {
-  return await User.findByIdAndUpdate(userId, { refreshToken }, { new: true });
+// ─── Phiên đăng nhập (mỗi thiết bị 1 session) ───
+
+// Mở phiên mới cho một thiết bị
+const addSession = async (userId, session) => {
+  return await User.findByIdAndUpdate(userId, { $push: { sessions: session } }, { new: true });
 };
 
-// Tìm người dùng theo refresh token
-const findByRefreshToken = async (refreshToken) => {
-  return await User.findOne({ refreshToken }).select("+refreshToken");
+// Tìm người dùng đang giữ refresh token này (dùng lúc gia hạn)
+const findBySessionToken = async (token) => {
+  return await User.findOne({ "sessions.token": token }).select("+sessions");
+};
+
+// Xoay token của đúng phiên đang gia hạn + đánh dấu vừa hoạt động
+const rotateSessionToken = async (userId, oldToken, newToken) => {
+  return await User.updateOne(
+    { _id: userId, "sessions.token": oldToken },
+    { $set: { "sessions.$.token": newToken, "sessions.$.lastUsedAt": new Date() } }
+  );
+};
+
+// Thu hồi 1 phiên theo token (đăng xuất chính thiết bị đang gọi)
+const removeSessionByToken = async (userId, token) => {
+  return await User.findByIdAndUpdate(userId, { $pull: { sessions: { token } } });
+};
+
+// Thu hồi 1 phiên theo id (đăng xuất thiết bị khác trong danh sách)
+const removeSessionById = async (userId, sessionId) => {
+  return await User.updateOne({ _id: userId }, { $pull: { sessions: { _id: sessionId } } });
+};
+
+// Thu hồi mọi phiên, trừ phiên đang giữ `keepToken` nếu có
+const removeSessions = async (userId, { keepToken = null } = {}) => {
+  const pull = keepToken ? { token: { $ne: keepToken } } : {};
+  return await User.updateOne({ _id: userId }, { $pull: { sessions: pull } });
+};
+
+// Danh sách phiên của người dùng
+const findSessions = async (userId) => {
+  const user = await User.findById(userId).select("+sessions");
+  return user?.sessions || [];
 };
 
 // Xoá hẳn tài khoản local chưa xác thực để giải phóng email cho đăng ký mới
@@ -89,7 +121,7 @@ const softDeleteByAdmin = async (userId, adminUserId) => {
     { _id: userId, deletedAt: null },
     {
       isActive: false,
-      refreshToken: null,
+      sessions: [], // admin xoá tài khoản → đá khỏi mọi thiết bị
       deletedAt: new Date(),
       deletedBy: adminUserId,
     },
@@ -134,8 +166,13 @@ module.exports = {
   findById,
   findManyForAdmin,
   create,
-  updateRefreshToken,
-  findByRefreshToken,
+  addSession,
+  findBySessionToken,
+  rotateSessionToken,
+  removeSessionByToken,
+  removeSessionById,
+  removeSessions,
+  findSessions,
   hardDeleteUnverifiedLocal,
   updatePassword,
   updateProfile,

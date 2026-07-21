@@ -1,5 +1,10 @@
 const Joi = require("joi");
 const { PHONE_REGEX, GENDER_OPTIONS } = require("../constants/tutor");
+const {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_COMPLEXITY_REGEX,
+  PASSWORD_COMPLEXITY_MESSAGE,
+} = require("../constants/password");
 const { validate } = require("../middlewares/validate.middleware");
 
 const updateProfileSchema = Joi.object({
@@ -27,4 +32,29 @@ const updateProfileSchema = Joi.object({
   }),
 });
 
-module.exports = { updateProfileSchema, validate };
+// Đổi mật khẩu khi ĐANG đăng nhập — dùng lại đúng bộ quy tắc độ mạnh của lúc đăng ký.
+const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().required().messages({
+    "string.empty": "Vui lòng nhập mật khẩu hiện tại",
+    "any.required": "Vui lòng nhập mật khẩu hiện tại",
+  }),
+  newPassword: Joi.string()
+    .min(PASSWORD_MIN_LENGTH)
+    .pattern(PASSWORD_COMPLEXITY_REGEX)
+    .required()
+    .messages({
+      "string.empty": "Mật khẩu mới không được để trống",
+      "string.min": `Mật khẩu mới phải có ít nhất ${PASSWORD_MIN_LENGTH} ký tự`,
+      "string.pattern.base": PASSWORD_COMPLEXITY_MESSAGE,
+      "any.required": "Mật khẩu mới là bắt buộc",
+    }),
+  confirmPassword: Joi.string().valid(Joi.ref("newPassword")).required().messages({
+    "string.empty": "Mật khẩu xác nhận không được để trống",
+    "any.only": "Mật khẩu xác nhận không khớp",
+    "any.required": "Mật khẩu xác nhận là bắt buộc",
+  }),
+  // Người dùng chọn có đăng xuất khỏi mọi thiết bị sau khi đổi hay không
+  revokeOtherSessions: Joi.boolean().default(false),
+});
+
+module.exports = { updateProfileSchema, changePasswordSchema, validate };

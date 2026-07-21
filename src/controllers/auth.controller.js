@@ -1,6 +1,10 @@
 const authService = require("../services/auth.service");
 const { successResponse } = require("../utils/response");
-const { REFRESH_TOKEN_COOKIE_OPTIONS, REFRESH_TOKEN_CLEAR_OPTIONS } = require("../utils/token");
+const {
+  REFRESH_TOKEN_CLEAR_OPTIONS,
+  sendRefreshToken,
+  readRefreshToken,
+} = require("../utils/token");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 const { LOGIN_FREE_ATTEMPTS } = require("../middlewares/rateLimit.middleware");
@@ -25,14 +29,12 @@ const register = async (req, res, next) => {
 // Xác thực OTP đăng ký và cấp token đăng nhập
 const verifyOtp = async (req, res, next) => {
   try {
-    const { accessToken, refreshToken, user } = await authService.verifyOtp(req.body);
-
-    res.cookie("refreshToken", refreshToken, REFRESH_TOKEN_COOKIE_OPTIONS);
+    const { accessToken, refreshToken, user } = await authService.verifyOtp(req.body, req);
 
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
       message: MESSAGE.OTP_VERIFY_SUCCESS,
-      data: { accessToken, user },
+      data: { accessToken, user, ...sendRefreshToken(req, res, refreshToken) },
     });
   } catch (error) {
     handleError(error, res, next);
@@ -57,14 +59,12 @@ const resendOtp = async (req, res, next) => {
 // Đăng nhập bằng tài khoản Google
 const googleLogin = async (req, res, next) => {
   try {
-    const { accessToken, refreshToken, user } = await authService.googleLogin(req.body);
-
-    res.cookie("refreshToken", refreshToken, REFRESH_TOKEN_COOKIE_OPTIONS);
+    const { accessToken, refreshToken, user } = await authService.googleLogin(req.body, req);
 
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
       message: MESSAGE.GOOGLE_LOGIN_SUCCESS,
-      data: { accessToken, user },
+      data: { accessToken, user, ...sendRefreshToken(req, res, refreshToken) },
     });
   } catch (error) {
     handleError(error, res, next);
@@ -74,14 +74,12 @@ const googleLogin = async (req, res, next) => {
 // Đăng nhập bằng email/mật khẩu
 const login = async (req, res, next) => {
   try {
-    const { accessToken, refreshToken, user } = await authService.login(req.body);
-
-    res.cookie("refreshToken", refreshToken, REFRESH_TOKEN_COOKIE_OPTIONS);
+    const { accessToken, refreshToken, user } = await authService.login(req.body, req);
 
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
       message: MESSAGE.LOGIN_SUCCESS,
-      data: { accessToken, user },
+      data: { accessToken, user, ...sendRefreshToken(req, res, refreshToken) },
     });
   } catch (error) {
     // Sau LOGIN_FREE_ATTEMPTS lần sai mật khẩu, kèm số lượt còn lại vào thông báo
@@ -101,7 +99,8 @@ const login = async (req, res, next) => {
 // Đăng xuất và xoá refresh token
 const logout = async (req, res, next) => {
   try {
-    await authService.logout(req.user.id);
+    // Chỉ đóng phiên của thiết bị đang gọi — máy khác vẫn giữ đăng nhập.
+    await authService.logout(req.user.id, readRefreshToken(req));
 
     res.clearCookie("refreshToken", REFRESH_TOKEN_CLEAR_OPTIONS);
 
@@ -117,15 +116,14 @@ const logout = async (req, res, next) => {
 // Cấp lại access token mới từ refresh token
 const refreshToken = async (req, res, next) => {
   try {
-    const token = req.cookies?.refreshToken;
+    // Mobile gửi refresh token trong body, web nằm ở cookie httpOnly.
+    const token = readRefreshToken(req);
     const { accessToken, refreshToken: newRefreshToken } = await authService.refreshToken(token);
-
-    res.cookie("refreshToken", newRefreshToken, REFRESH_TOKEN_COOKIE_OPTIONS);
 
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
       message: MESSAGE.REFRESH_TOKEN_SUCCESS,
-      data: { accessToken },
+      data: { accessToken, ...sendRefreshToken(req, res, newRefreshToken) },
     });
   } catch (error) {
     handleError(error, res, next);

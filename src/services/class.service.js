@@ -374,7 +374,13 @@ const getClasses = async (query, user) => {
   // Ẩn các lớp đã "khóa" (đơn selected/approved/cancel_requested — người đăng đã chọn gia sư,
   // đã ghép, hoặc đang xin hủy) khỏi danh sách công khai, đồng bộ với feed "Lớp mới theo môn".
   // Lưu ý: đơn pending (mới ứng tuyển, chưa được chọn) KHÔNG khóa — lớp vẫn hiển thị để nhận thêm.
-  const excludeIds = await classApplicationRepository.distinctActiveClassIds();
+  // Nhưng gia sư đã ấn nhận lớp thì không thấy lại lớp đó nữa (giống feed "Lớp mới theo môn").
+  const tutor = user?.id ? await tutorRepository.findByUserId(user.id) : null;
+  const [lockedIds, myAppliedIds] = await Promise.all([
+    classApplicationRepository.distinctActiveClassIds(),
+    tutor ? classApplicationRepository.distinctClassIdsByTutor(tutor._id) : [],
+  ]);
+  const excludeIds = [...new Set([...lockedIds, ...myAppliedIds].map(String))];
   const { classes, totalItems } = await classRepository.findMany(filters, { page, limit, excludeIds });
 
   const maskedClasses = await maskClassItem(classes, user);
