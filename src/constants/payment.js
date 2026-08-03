@@ -18,9 +18,9 @@ const PAYMENT_PROVIDER_LABELS = {
   zalopay: "ZaloPay",
 };
 
-// Phí nhận lớp gia sư phải trả = 30% học phí tháng đầu (finalFeePerMonth) của lớp.
+// Phí nhận lớp gia sư phải trả = 12% học phí tháng đầu (finalFeePerMonth) của lớp.
 // ponytail: quy tắc phí để 1 chỗ; đổi tỉ lệ hoặc thay bằng phí cố định ở đúng dòng này.
-const CLASS_FEE_RATE = 0.3;
+const CLASS_FEE_RATE = 0.12;
 
 // Tính phí nhận lớp từ học phí/tháng (làm tròn tới 1.000đ cho số tiền "đẹp").
 const computeClassFee = (feePerMonth = 0) => {

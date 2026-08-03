@@ -9,9 +9,11 @@ const SPECIFIC_TUTOR_LEVELS = ["student", "teacher"];
 // Mặc định mọi truy vấn đọc đều bỏ qua bài đăng đã xóa mềm (nằm trong thùng rác)
 const NOT_DELETED = { deletedAt: null };
 
-// Bài đăng "còn hiển thị" ở feed/danh sách công khai: chưa bị ghép hoặc hết hạn.
+// Bài đăng "còn hiển thị" ở feed/danh sách công khai: chưa bị ghép, hết hạn hoặc đã hoàn thành.
 // Dùng $nin nên cũng khớp các bài cũ chưa có field `status` (legacy) — coi như đang mở.
-const VISIBLE_STATUS = { status: { $nin: [CLASS_STATUS.MATCHED, CLASS_STATUS.EXPIRED] } };
+const VISIBLE_STATUS = {
+  status: { $nin: [CLASS_STATUS.MATCHED, CLASS_STATUS.EXPIRED, CLASS_STATUS.COMPLETED] },
+};
 
 // Dựng bộ lọc feed cá nhân hoá cho gia sư (môn + giới tính + trình độ + khu vực)
 const buildFeedMatchFilter = ({ subjects, genderPrefs, levelPrefs, provinceCode } = {}) => {
