@@ -13,7 +13,9 @@ const otpSchema = new mongoose.Schema(
     otp: {
       type: String,
       required: true,
-      match: [/^\d{6}$/, "OTP phải là chuỗi 6 chữ số"],
+      // OTP mới lưu HMAC SHA-256; vẫn nhận 6 chữ số để bản ghi TTL cũ không bị breaking khi deploy.
+      match: [/^(?:\d{6}|[a-f0-9]{64})$/, "OTP không hợp lệ"],
+      select: false,
     },
     type: {
       type: String,

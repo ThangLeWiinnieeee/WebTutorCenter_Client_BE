@@ -51,6 +51,7 @@ const MESSAGE = {
   TOKEN_INVALID: "Token không hợp lệ hoặc đã hết hạn",
   TOKEN_EXPIRED: "Token đã hết hạn",
   REFRESH_TOKEN_INVALID: "Refresh token không hợp lệ",
+  REFRESH_TOKEN_SECRET_MISSING: "REFRESH_TOKEN_SECRET chưa được cấu hình",
 
   // Validation
   VALIDATION_ERROR: "Dữ liệu đầu vào không hợp lệ",

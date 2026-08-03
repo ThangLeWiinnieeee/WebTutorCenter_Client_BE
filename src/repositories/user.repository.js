@@ -44,13 +44,13 @@ const addSession = async (userId, session) => {
 
 // Tìm người dùng đang giữ refresh token này (dùng lúc gia hạn)
 const findBySessionToken = async (token) => {
-  return await User.findOne({ "sessions.token": token }).select("+sessions");
+  return await User.findOne({ "sessions.token": token, isActive: true, deletedAt: null }).select("+sessions");
 };
 
 // Xoay token của đúng phiên đang gia hạn + đánh dấu vừa hoạt động
 const rotateSessionToken = async (userId, oldToken, newToken) => {
   return await User.updateOne(
-    { _id: userId, "sessions.token": oldToken },
+    { _id: userId, "sessions.token": oldToken, isActive: true, deletedAt: null },
     { $set: { "sessions.$.token": newToken, "sessions.$.lastUsedAt": new Date() } }
   );
 };
@@ -87,6 +87,16 @@ const updatePassword = async (userId, hashedPassword) => {
   return await User.findByIdAndUpdate(userId, { password: hashedPassword }, { new: true });
 };
 
+// Reset password chỉ thắng nếu password hash vẫn là phiên bản reset token đã xác thực.
+// Xóa sessions cùng update để mật khẩu mới và việc thu hồi phiên không thể lệch trạng thái.
+const resetPasswordIfCurrent = async (userId, currentHash, newHash) => {
+  return await User.findOneAndUpdate(
+    { _id: userId, password: currentHash, deletedAt: null },
+    { password: newHash, sessions: [] },
+    { new: true }
+  );
+};
+
 // Cập nhật thông tin cá nhân của người dùng
 const updateProfile = async (userId, updateData) => {
   return await User.findOneAndUpdate(
@@ -103,7 +113,8 @@ const updateRole = async (userId, role) => {
 
 // Cập nhật trạng thái hoạt động của người dùng
 const updateStatus = async (userId, isActive) => {
-  return await User.findOneAndUpdate({ _id: userId, deletedAt: null }, { isActive }, { new: true });
+  const update = isActive ? { isActive: true } : { isActive: false, sessions: [] };
+  return await User.findOneAndUpdate({ _id: userId, deletedAt: null }, update, { new: true });
 };
 
 // Cập nhật thông tin người dùng (từ admin)
@@ -175,6 +186,7 @@ module.exports = {
   findSessions,
   hardDeleteUnverifiedLocal,
   updatePassword,
+  resetPasswordIfCurrent,
   updateProfile,
   updateRole,
   updateStatus,
