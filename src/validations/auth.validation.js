@@ -1,5 +1,4 @@
 const Joi = require("joi");
-const ROLES = require("../constants/role");
 const { PHONE_REGEX } = require("../constants/tutor");
 const { validate } = require("../middlewares/validate.middleware");
 
@@ -35,12 +34,8 @@ const registerSchema = Joi.object({
     "any.only": "Mật khẩu xác nhận không khớp",
     "any.required": "Mật khẩu xác nhận là bắt buộc",
   }),
-  role: Joi.string()
-    .valid(ROLES.USER, ROLES.TUTOR)
-    .default(ROLES.USER)
-    .messages({
-      "any.only": `Vai trò phải là '${ROLES.USER}' hoặc '${ROLES.TUTOR}'`,
-    }),
+  // Public registration không được quyết định quyền; strip để tương thích client cũ còn gửi field này.
+  role: Joi.any().strip(),
   phone: Joi.string()
     .pattern(PHONE_REGEX)
     .required()

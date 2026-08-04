@@ -2,14 +2,31 @@ const userRepository = require("../repositories/user.repository");
 const otpRepository = require("../repositories/otp.repository");
 const pendingRegistrationRepository = require("../repositories/pendingRegistration.repository");
 const { hashPassword, comparePassword } = require("../utils/hash");
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken, generateResetToken, verifyResetToken } = require("../utils/token");
-const { generateOtp, getOtpExpiry, isResendTooSoon, getResendWaitSeconds, OTP_EXPIRES_MINUTES, MAX_OTP_ATTEMPTS } = require("../utils/otp");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+  generateResetToken,
+  verifyResetToken,
+  isResetTokenCurrent,
+} = require("../utils/token");
+const {
+  generateOtp,
+  hashOtp,
+  matchesOtp,
+  getOtpExpiry,
+  isResendTooSoon,
+  getResendWaitSeconds,
+  OTP_EXPIRES_MINUTES,
+  MAX_OTP_ATTEMPTS,
+} = require("../utils/otp");
 const { sendOtpEmail, sendForgotPasswordOtpEmail } = require("../utils/email");
 const { describeDevice } = require("../utils/device");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 const ACCOUNT_TYPE = require("../constants/accountType");
 const OTP_TYPE = require("../constants/otpType");
+const ROLES = require("../constants/role");
 const AppError = require("../utils/AppError");
 const { UserMapper } = require("../mappers");
 const { OAuth2Client } = require("google-auth-library");
@@ -33,8 +50,12 @@ const _issueTokens = async (user, req) => {
 };
 
 // Kiểm tra OTP nhập vào; sai thì đếm số lần, vượt MAX_OTP_ATTEMPTS thì vô hiệu OTP (chống brute-force).
-const _assertOtpMatches = async (otpDoc, otp, { email, type }) => {
-  if (otpDoc.otp === otp) return;
+const _assertAndConsumeOtp = async (otpDoc, otp, { email, type }) => {
+  if (matchesOtp(otpDoc.otp, otp, { email, type })) {
+    const result = await otpRepository.deleteById(otpDoc._id);
+    if (result.deletedCount === 1) return;
+    throw new AppError(MESSAGE.OTP_EXPIRED, HTTP_STATUS.BAD_REQUEST);
+  }
 
   const attempts = await otpRepository.incrementAttempts(otpDoc._id);
   if (attempts >= MAX_OTP_ATTEMPTS) {
@@ -56,19 +77,29 @@ const _createAndSendOtp = async ({ email, fullName, type }) => {
   const otp = generateOtp();
   const expiresAt = getOtpExpiry();
 
-  await otpRepository.create({ email, otp, type, expiresAt });
+  const otpDoc = await otpRepository.create({
+    email,
+    otp: hashOtp(otp, { email, type }),
+    type,
+    expiresAt,
+  });
 
-  if (type === OTP_TYPE.FORGOT_PASSWORD) {
-    await sendForgotPasswordOtpEmail({ to: email, fullName, otp, expiresInMinutes: OTP_EXPIRES_MINUTES });
-  } else {
-    await sendOtpEmail({ to: email, fullName, otp, expiresInMinutes: OTP_EXPIRES_MINUTES });
+  try {
+    if (type === OTP_TYPE.FORGOT_PASSWORD) {
+      await sendForgotPasswordOtpEmail({ to: email, fullName, otp, expiresInMinutes: OTP_EXPIRES_MINUTES });
+    } else {
+      await sendOtpEmail({ to: email, fullName, otp, expiresInMinutes: OTP_EXPIRES_MINUTES });
+    }
+  } catch (error) {
+    await otpRepository.deleteById(otpDoc._id);
+    throw error;
   }
 };
 
 // ─── REGISTER ───
 
 // Đăng ký tài khoản mới: lưu tạm thông tin và gửi OTP xác thực
-const register = async ({ fullName, email, password, role, phone, dateOfBirth }) => {
+const register = async ({ fullName, email, password, phone, dateOfBirth }) => {
   const existingUser = await userRepository.findByEmail(email);
 
   if (existingUser) {
@@ -91,7 +122,7 @@ const register = async ({ fullName, email, password, role, phone, dateOfBirth })
     fullName,
     email,
     password: hashedPassword,
-    role,
+    role: ROLES.USER,
     phone,
     dateOfBirth,
   });
@@ -123,14 +154,14 @@ const verifyOtp = async ({ email, otp, type = OTP_TYPE.REGISTER }, req) => {
     throw new AppError(MESSAGE.OTP_EXPIRED, HTTP_STATUS.BAD_REQUEST);
   }
 
-  await _assertOtpMatches(otpDoc, otp, { email, type });
+  await _assertAndConsumeOtp(otpDoc, otp, { email, type });
 
   // OTP hợp lệ → giờ mới ghi tài khoản vào DB (đã kích hoạt sẵn)
   const user = await userRepository.create({
     fullName: pending.fullName,
     email: pending.email,
     password: pending.password,
-    role: pending.role,
+    role: ROLES.USER,
     phone: pending.phone,
     dateOfBirth: pending.dateOfBirth,
     type: ACCOUNT_TYPE.LOCAL,
@@ -164,7 +195,7 @@ const resendOtp = async ({ email, type = OTP_TYPE.REGISTER }) => {
       fullName: pending.fullName,
       email: pending.email,
       password: pending.password,
-      role: pending.role,
+      role: ROLES.USER,
       phone: pending.phone,
       dateOfBirth: pending.dateOfBirth,
     });
@@ -206,7 +237,7 @@ const forgotPassword = async ({ email }) => {
 
 // Xác thực OTP quên mật khẩu và cấp reset token
 const verifyForgotPasswordOtp = async ({ email, otp }) => {
-  const user = await userRepository.findByEmail(email);
+  const user = await userRepository.findByEmail(email, true);
   if (!user || !user.isVerified) {
     throw new AppError(MESSAGE.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
@@ -216,12 +247,12 @@ const verifyForgotPasswordOtp = async ({ email, otp }) => {
     throw new AppError(MESSAGE.OTP_EXPIRED, HTTP_STATUS.BAD_REQUEST);
   }
 
-  await _assertOtpMatches(otpDoc, otp, { email, type: OTP_TYPE.FORGOT_PASSWORD });
+  await _assertAndConsumeOtp(otpDoc, otp, { email, type: OTP_TYPE.FORGOT_PASSWORD });
 
   // OTP hợp lệ → xóa và cấp resetToken
   await otpRepository.deleteByEmailAndType(email, OTP_TYPE.FORGOT_PASSWORD);
 
-  const resetToken = generateResetToken({ id: user._id, email: user.email });
+  const resetToken = generateResetToken({ id: user._id, email: user.email }, user.password);
 
   return { resetToken };
 };
@@ -242,14 +273,19 @@ const resetPassword = async ({ resetToken, newPassword }) => {
     throw new AppError(MESSAGE.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
   }
 
-  if (typeof user.password === "string" && await comparePassword(newPassword, user.password)) {
+  if (typeof user.password !== "string" || !isResetTokenCurrent(decoded, user.password)) {
+    throw new AppError(MESSAGE.RESET_TOKEN_INVALID, HTTP_STATUS.UNAUTHORIZED);
+  }
+
+  if (await comparePassword(newPassword, user.password)) {
     throw new AppError(MESSAGE.RESET_PASSWORD_SAME_AS_OLD, HTTP_STATUS.BAD_REQUEST);
   }
 
   const hashedPassword = await hashPassword(newPassword);
-  await userRepository.updatePassword(user._id, hashedPassword);
-  // Quên mật khẩu thường là do nghi bị lộ → đóng sạch phiên cũ trên mọi thiết bị.
-  await userRepository.removeSessions(user._id);
+  const updated = await userRepository.resetPasswordIfCurrent(user._id, user.password, hashedPassword);
+  if (!updated) {
+    throw new AppError(MESSAGE.RESET_TOKEN_INVALID, HTTP_STATUS.UNAUTHORIZED);
+  }
 };
 
 // ─── LOGIN ───
@@ -321,7 +357,10 @@ const refreshToken = async (token) => {
   const payload = { id: user._id, email: user.email, role: user.role };
   const accessToken = generateAccessToken(payload);
   const newRefreshToken = generateRefreshToken(payload);
-  await userRepository.rotateSessionToken(user._id, token, newRefreshToken);
+  const rotated = await userRepository.rotateSessionToken(user._id, token, newRefreshToken);
+  if (rotated.modifiedCount !== 1) {
+    throw new AppError(MESSAGE.REFRESH_TOKEN_INVALID, HTTP_STATUS.UNAUTHORIZED);
+  }
 
   return { accessToken, refreshToken: newRefreshToken };
 };

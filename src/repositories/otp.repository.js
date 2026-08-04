@@ -7,7 +7,9 @@ const create = async ({ email, otp, type, expiresAt }) => {
 
 // Chỉ lấy OTP còn hạn và mới nhất (phòng trường hợp TTL chưa kịp dọn OTP cũ)
 const findLatestActiveByEmailAndType = async (email, type) => {
-  return await Otp.findOne({ email, type, expiresAt: { $gt: new Date() } }).sort({ createdAt: -1 });
+  return await Otp.findOne({ email, type, expiresAt: { $gt: new Date() } })
+    .select("+otp")
+    .sort({ createdAt: -1 });
 };
 
 // Tăng số lần nhập sai (nguyên tử qua $inc) và trả về số lần sau khi tăng.
@@ -21,6 +23,11 @@ const deleteByEmailAndType = async (email, type) => {
   return await Otp.deleteMany({ email, type });
 };
 
+// Xóa đúng OTP vừa dùng/gửi lỗi; deletedCount giúp chặn hai request cùng tiêu thụ một OTP.
+const deleteById = async (otpId) => {
+  return await Otp.deleteOne({ _id: otpId });
+};
+
 // Xóa toàn bộ OTP theo email (xóa vĩnh viễn tài khoản)
 const deleteByEmail = async (email) => {
   return await Otp.deleteMany({ email });
@@ -30,6 +37,7 @@ module.exports = {
   create,
   findLatestActiveByEmailAndType,
   incrementAttempts,
+  deleteById,
   deleteByEmailAndType,
   deleteByEmail,
 };

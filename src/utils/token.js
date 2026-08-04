@@ -1,4 +1,6 @@
 const jwt = require("jsonwebtoken");
+const { createHmac, timingSafeEqual } = require("crypto");
+const MESSAGE = require("../constants/message");
 
 // Pin thuật toán HS256 cho cả ký và xác thực. Khi verify, chỉ chấp nhận HS256 để chặn
 // algorithm-confusion (vd token giả với alg "none" hoặc RS256 lợi dụng public key).
@@ -36,22 +38,37 @@ const verifyRefreshToken = (token) => {
   return jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, { algorithms: [JWT_ALG] });
 };
 
-// Reset token dùng riêng cho luồng quên mật khẩu, hết hạn sau 15 phút
-const generateResetToken = (payload) => {
+const getPasswordVersion = (passwordHash) => {
+  if (!process.env.REFRESH_TOKEN_SECRET) {
+    throw new Error(MESSAGE.REFRESH_TOKEN_SECRET_MISSING);
+  }
+  return createHmac("sha256", process.env.REFRESH_TOKEN_SECRET)
+    .update(`reset-password:${passwordHash}`)
+    .digest("hex");
+};
+
+// Reset token gắn với password hash hiện tại: đổi mật khẩu xong thì token tự hết hiệu lực.
+const generateResetToken = (payload, passwordHash) => {
   return jwt.sign(
-    { ...payload, purpose: "reset_password" },
-    process.env.ACCESS_TOKEN_SECRET,
+    { ...payload, purpose: "reset_password", passwordVersion: getPasswordVersion(passwordHash) },
+    process.env.REFRESH_TOKEN_SECRET,
     { algorithm: JWT_ALG, expiresIn: "15m" }
   );
 };
 
 // Xác thực reset token và kiểm tra đúng mục đích đổi mật khẩu
 const verifyResetToken = (token) => {
-  const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, { algorithms: [JWT_ALG] });
-  if (decoded.purpose !== "reset_password") {
-    throw new Error("Token không đúng mục đích");
+  const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, { algorithms: [JWT_ALG] });
+  if (decoded.purpose !== "reset_password" || typeof decoded.passwordVersion !== "string") {
+    throw new Error(MESSAGE.RESET_TOKEN_INVALID);
   }
   return decoded;
+};
+
+const isResetTokenCurrent = (decoded, passwordHash) => {
+  const current = Buffer.from(getPasswordVersion(passwordHash));
+  const fromToken = Buffer.from(decoded.passwordVersion || "");
+  return current.length === fromToken.length && timingSafeEqual(current, fromToken);
 };
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -121,6 +138,7 @@ module.exports = {
   verifyRefreshToken,
   generateResetToken,
   verifyResetToken,
+  isResetTokenCurrent,
   REFRESH_TOKEN_CLEAR_OPTIONS,
   isMobileClient,
   sendRefreshToken,
