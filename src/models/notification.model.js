@@ -37,6 +37,12 @@ const notificationSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Khóa idempotency từ outbox; direct notification không có field này.
+    eventKey: {
+      type: String,
+      default: undefined,
+      select: false,
+    },
   },
   {
     timestamps: true,
@@ -45,6 +51,10 @@ const notificationSchema = new mongoose.Schema(
 
 // TTL index: auto-delete documents 7 days after readAt is set
 notificationSchema.index({ readAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
+notificationSchema.index(
+  { eventKey: 1 },
+  { name: "uniq_notification_event_key", unique: true, sparse: true },
+);
 
 const Notification = mongoose.model("Notification", notificationSchema);
 

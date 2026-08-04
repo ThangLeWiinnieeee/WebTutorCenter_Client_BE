@@ -174,22 +174,25 @@ const generateUniqueVoucherCode = () =>
   });
 
 // Tạo voucher cá nhân tặng cho 1 user (khi hoàn thành lớp). Trả document promo đã tạo.
-const generateRewardVoucher = async (ownerUserId, { classCode } = {}) => {
+const generateRewardVoucher = async (ownerUserId, { classCode, session } = {}) => {
   const code = await generateUniqueVoucherCode();
   const expiresAt = new Date();
   expiresAt.setMonth(expiresAt.getMonth() + REWARD_VOUCHER.validityMonths);
 
-  return await promoRepository.create({
-    code,
-    ownerUserId,
-    description: classCode ? `Quà hoàn thành lớp ${classCode}` : "Quà hoàn thành lớp học",
-    discountType: REWARD_VOUCHER.discountType,
-    discountValue: REWARD_VOUCHER.discountValue,
-    maxDiscountAmount: REWARD_VOUCHER.maxDiscountAmount,
-    usageLimit: REWARD_VOUCHER.usageLimit,
-    expiresAt,
-    isActive: true,
-  });
+  return await promoRepository.create(
+    {
+      code,
+      ownerUserId,
+      description: classCode ? `Quà hoàn thành lớp ${classCode}` : "Quà hoàn thành lớp học",
+      discountType: REWARD_VOUCHER.discountType,
+      discountValue: REWARD_VOUCHER.discountValue,
+      maxDiscountAmount: REWARD_VOUCHER.maxDiscountAmount,
+      usageLimit: REWARD_VOUCHER.usageLimit,
+      expiresAt,
+      isActive: true,
+    },
+    { session },
+  );
 };
 
 // Trạng thái hiển thị của một voucher trong kho mã

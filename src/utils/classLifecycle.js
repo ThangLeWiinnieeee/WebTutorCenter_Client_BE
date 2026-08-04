@@ -1,8 +1,9 @@
 const classRepository = require("../repositories/class.repository");
 const classApplicationRepository = require("../repositories/class.application.repository");
-const notificationService = require("../services/notification.service");
+const outboxService = require("../services/outbox.service");
 const { NOTIFICATION_TYPES } = require("../constants/notification");
 const { CLASS_STATUS } = require("../constants/class");
+const { withTransaction } = require("./transaction");
 
 const EXPIRY_INTERVAL_MS = 15 * 60 * 1000; // quét mỗi 15 phút
 const FIRST_RUN_DELAY_MS = 15 * 1000; // chạy lần đầu sau 15s để DB ổn định
@@ -14,21 +15,33 @@ const formatStartDate = (date) =>
 
 // Đánh dấu hết hạn các lớp quá giờ chưa có gia sư nhận và báo cho người đăng
 const expireOverdueClasses = async () => {
+  const now = new Date();
   const activeClassIds = await classApplicationRepository.distinctActiveClassIds();
-  const classes = await classRepository.findExpirableClasses(new Date(), activeClassIds);
+  const classes = await classRepository.findExpirableClasses(now, activeClassIds);
 
   let expired = 0;
   for (const cls of classes) {
-    await classRepository.updateStatus(cls._id, CLASS_STATUS.EXPIRED);
-    const posterId = cls.createdBy?._id ?? cls.createdBy;
-    if (posterId) {
-      await notificationService.createNotification({
-        userId: posterId,
+    const didExpire = await withTransaction(async (session) => {
+      const freshClass = await classRepository.findById(cls._id, { session });
+      if (!freshClass || !freshClass.startDate || new Date(freshClass.startDate) > now) return false;
+      if (await classApplicationRepository.findLockingByClassId(cls._id, { session })) return false;
+      const updated = await classRepository.transitionStatus(
+        cls._id,
+        [CLASS_STATUS.OPEN, null],
+        { $set: { status: CLASS_STATUS.EXPIRED } },
+        { session },
+      );
+      if (!updated) return false;
+
+      await outboxService.enqueueNotification({
+        dedupeKey: `class:${cls._id}:expired`,
+        userId: updated.createdBy,
         type: NOTIFICATION_TYPES.CLASS_EXPIRED,
-        message: `Rất tiếc, lớp ${cls.classCode} (Môn: ${cls.subject}) đã tới thời gian bắt đầu nhưng chưa có gia sư nào nhận. Bạn vui lòng tạo bài đăng mới hoặc liên hệ admin để được hỗ trợ.`,
-      });
-    }
-    expired += 1;
+        message: `Rất tiếc, lớp ${updated.classCode} (Môn: ${updated.subject}) đã tới thời gian bắt đầu nhưng chưa có gia sư nào nhận. Bạn vui lòng tạo bài đăng mới hoặc liên hệ admin để được hỗ trợ.`,
+      }, { session });
+      return true;
+    });
+    if (didExpire) expired += 1;
   }
   return expired;
 };
@@ -42,17 +55,31 @@ const remindUnselectedClasses = async () => {
 
   let reminded = 0;
   for (const cls of classes) {
-    // Đánh dấu trước để không nhắc lại ở lần quét sau (kể cả khi tạo notification lỗi giữa chừng)
-    await classRepository.update(cls._id, { selectionReminderSentAt: now });
-    const posterId = cls.createdBy?._id ?? cls.createdBy;
-    if (posterId) {
-      await notificationService.createNotification({
-        userId: posterId,
+    const didRemind = await withTransaction(async (session) => {
+      if (await classApplicationRepository.findLockingByClassId(cls._id, { session })) return false;
+      const updated = await classRepository.markSelectionReminderSent(
+        cls._id,
+        now,
+        deadline,
+        { session },
+      );
+      if (!updated) return false;
+      await outboxService.enqueueNotification({
+        dedupeKey: `class:${cls._id}:selection-reminder`,
+        userId: updated.createdBy,
         type: NOTIFICATION_TYPES.CLASS_SELECTION_REMINDER,
-        message: `Lớp ${cls.classCode} (Môn: ${cls.subject}) sẽ bắt đầu vào ${formatStartDate(cls.startDate)} nhưng bạn chưa chọn gia sư. Vui lòng chọn gia sư gấp để lớp có thể bắt đầu đúng hạn.`,
-      });
-    }
-    reminded += 1;
+        message: `Lớp ${updated.classCode} (Môn: ${updated.subject}) sẽ bắt đầu vào ${formatStartDate(updated.startDate)} nhưng bạn chưa chọn gia sư. Vui lòng chọn gia sư gấp để lớp có thể bắt đầu đúng hạn.`,
+      }, { session });
+      await outboxService.enqueueClassSelectionReminderEmail({
+        dedupeKey: `class:${cls._id}:selection-reminder:email`,
+        userId: updated.createdBy,
+        classCode: updated.classCode,
+        subject: updated.subject,
+        startDate: updated.startDate,
+      }, { session });
+      return true;
+    });
+    if (didRemind) reminded += 1;
   }
   return reminded;
 };

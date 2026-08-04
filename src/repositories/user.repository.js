@@ -107,8 +107,12 @@ const updateProfile = async (userId, updateData) => {
 };
 
 // Cập nhật vai trò của người dùng
-const updateRole = async (userId, role) => {
-  return await User.findOneAndUpdate({ _id: userId, deletedAt: null }, { role }, { new: true });
+const updateRole = async (userId, role, { session } = {}) => {
+  return await User.findOneAndUpdate(
+    { _id: userId, deletedAt: null },
+    { role },
+    { new: true, session },
+  );
 };
 
 // Cập nhật trạng thái hoạt động của người dùng

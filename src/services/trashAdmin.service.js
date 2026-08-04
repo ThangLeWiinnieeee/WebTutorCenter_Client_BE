@@ -12,6 +12,7 @@ const profileChangeRequestRepository = require("../repositories/profileChangeReq
 const otpRepository = require("../repositories/otp.repository");
 const pendingRegistrationRepository = require("../repositories/pendingRegistration.repository");
 const reviewService = require("./review.service");
+const { withTransaction } = require("../utils/transaction");
 const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const { UserMapper, ClassMapper, PromoMapper, ReviewMapper } = require("../mappers");
@@ -125,9 +126,20 @@ const TRASH_ENTITIES = {
     },
     // Khôi phục đánh giá → tính lại điểm trung bình của gia sư
     restore: async (id) => {
-      const restored = await reviewRepository.restore(id);
-      if (restored) await reviewService.recomputeTutorRating(restored.tutorId);
-      return restored;
+      try {
+        return await withTransaction(async (session) => {
+          const restored = await reviewRepository.restore(id, { session });
+          if (restored) {
+            await reviewService.recomputeTutorRating(restored.tutorId, { session });
+          }
+          return restored;
+        });
+      } catch (error) {
+        if (error?.code === 11000) {
+          throw new AppError(MESSAGE.REVIEW_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
+        }
+        throw error;
+      }
     },
     purge: (id) => reviewRepository.deleteById(id),
   },

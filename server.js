@@ -5,6 +5,7 @@ const connectDB = require("./src/configs/database");
 const { startClassLifecycleScheduler } = require("./src/utils/classLifecycle");
 const { initSocket } = require("./src/configs/socket");
 const locationCache = require("./src/utils/locationCache");
+const { startOutboxWorker } = require("./src/services/outbox.service");
 
 const PORT = process.env.PORT || 5000;
 
@@ -21,6 +22,8 @@ connectDB().then(async () => {
 
   // Job định kỳ: đánh dấu hết hạn bài đăng quá giờ học mà chưa có gia sư nhận
   startClassLifecycleScheduler();
+  // Gửi notification đã ghi bền vững cùng transaction nghiệp vụ.
+  startOutboxWorker();
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
   });

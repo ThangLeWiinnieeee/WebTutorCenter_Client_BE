@@ -11,9 +11,39 @@ const classApplicationRepository = require("../repositories/class.application.re
 const tutorRepository = require("../repositories/tutor.repository");
 const userRepository = require("../repositories/user.repository");
 const tutorService = require("./tutor.service");
-const notificationService = require("./notification.service");
+const outboxService = require("./outbox.service");
 const { ClassApplicationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
+const { withTransaction } = require("../utils/transaction");
+const { randomUUID } = require("node:crypto");
+
+const OCCUPATION_TO_LEVEL = {
+  student: "student",
+  graduated: "teacher",
+  teacher: "teacher",
+};
+
+// Một nguồn kiểm tra nghiệp vụ cho API ứng tuyển; FE chỉ hỗ trợ báo sớm cho người dùng.
+const getClassApplicationEligibilityError = (classItem, tutor, user) => {
+  if (!Array.isArray(tutor?.subjects) || !tutor.subjects.includes(classItem.subject)) {
+    return MESSAGE.CLASS_APPLICATION_SUBJECT_MISMATCH;
+  }
+  if (
+    classItem.tutorGenderPref &&
+    classItem.tutorGenderPref !== "any" &&
+    user?.gender !== classItem.tutorGenderPref
+  ) {
+    return MESSAGE.CLASS_APPLICATION_GENDER_MISMATCH;
+  }
+  if (
+    classItem.tutorLevelPref &&
+    classItem.tutorLevelPref !== "any" &&
+    OCCUPATION_TO_LEVEL[tutor?.occupationStatus] !== classItem.tutorLevelPref
+  ) {
+    return MESSAGE.CLASS_APPLICATION_LEVEL_MISMATCH;
+  }
+  return null;
+};
 
 // Gia sư ứng tuyển vào một lớp (kiểm tra điều kiện, tạo đơn, báo người đăng)
 const applyForClass = async (userId, classId) => {
@@ -38,7 +68,10 @@ const applyForClass = async (userId, classId) => {
     throw new AppError(MESSAGE.CLASS_APPLICATION_OWN_CLASS, HTTP_STATUS.FORBIDDEN);
   }
 
-  const tutor = await tutorRepository.findByUserId(userId);
+  const [tutor, tutorUser] = await Promise.all([
+    tutorRepository.findByUserId(userId),
+    userRepository.findById(userId),
+  ]);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
   if (tutor.status !== TUTOR_STATUS.APPROVED) {
@@ -50,11 +83,9 @@ const applyForClass = async (userId, classId) => {
     throw new AppError(MESSAGE.CLASS_APPLICATION_DOCS_REQUIRED, HTTP_STATUS.UNPROCESSABLE_ENTITY);
   }
 
-  if (!tutor.subjects.includes(classItem.subject)) {
-    throw new AppError(
-      `Bạn không thể nhận lớp này vì bạn không đăng ký dạy môn ${classItem.subject}`,
-      HTTP_STATUS.UNPROCESSABLE_ENTITY,
-    );
+  const eligibilityError = getClassApplicationEligibilityError(classItem, tutor, tutorUser);
+  if (eligibilityError) {
+    throw new AppError(eligibilityError, HTTP_STATUS.UNPROCESSABLE_ENTITY);
   }
 
   const existing = await classApplicationRepository.findByClassAndTutor(classId, tutor._id);
@@ -62,11 +93,40 @@ const applyForClass = async (userId, classId) => {
     throw new AppError(MESSAGE.CLASS_APPLICATION_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
   }
 
-  const application = await classApplicationRepository.create({
-    classId,
-    tutorId: tutor._id,
-    status: CLASS_APPLICATION_STATUS.PENDING,
-  });
+  const tutorName = tutorUser?.fullName || "Gia sư";
+  const posterUserId = classItem.createdBy;
+  let applicationId;
+  try {
+    await withTransaction(async (session) => {
+      const openClass = await classRepository.guardOpen(classId, { session });
+      if (!openClass) {
+        throw new AppError(MESSAGE.CLASS_APPLICATION_CLASS_CLOSED, HTTP_STATUS.CONFLICT);
+      }
+      if (await classApplicationRepository.findLockingByClassId(classId, { session })) {
+        throw new AppError(MESSAGE.CLASS_APPLICATION_CLASS_TAKEN, HTTP_STATUS.CONFLICT);
+      }
+      const application = await classApplicationRepository.create(
+        {
+          classId,
+          tutorId: tutor._id,
+          status: CLASS_APPLICATION_STATUS.PENDING,
+        },
+        { session },
+      );
+      applicationId = application._id;
+      await outboxService.enqueueNotification({
+        dedupeKey: `class-application:${application._id}:pending:poster`,
+        userId: posterUserId,
+        type: NOTIFICATION_TYPES.CLASS_APPLICATION_PENDING,
+        message: `Gia sư ${tutorName} vừa ứng tuyển lớp ${classItem.classCode} - Môn: ${classItem.subject}. Vào "Bài đăng của tôi" để chọn gia sư.`,
+      }, { session });
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      throw new AppError(MESSAGE.CLASS_APPLICATION_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
+    }
+    throw error;
+  }
 
   // Ứng tuyển = tín hiệu quan tâm mạnh nhất → cộng điểm affinity để feed đẩy môn này lên đầu.
   // Best-effort: không để việc ghi tín hiệu làm hỏng luồng nhận lớp nếu thất bại.
@@ -74,19 +134,9 @@ const applyForClass = async (userId, classId) => {
     .incrementSubjectAffinity(userId, classItem.subject, SUBJECT_AFFINITY.WEIGHT.APPLY)
     .catch(() => {});
 
-  // Luồng mới: đơn ứng tuyển gửi tới NGƯỜI ĐĂNG (để họ chọn gia sư), không gửi thẳng admin.
-  const tutorUser = await userRepository.findById(userId);
-  const tutorName = tutorUser?.fullName || "Gia sư";
-  const posterUserId = classItem.createdBy;
-  if (posterUserId) {
-    await notificationService.createNotification({
-      userId: posterUserId,
-      type: NOTIFICATION_TYPES.CLASS_APPLICATION_PENDING,
-      message: `Gia sư ${tutorName} vừa ứng tuyển lớp ${classItem.classCode} - Môn: ${classItem.subject}. Vào "Bài đăng của tôi" để chọn gia sư.`,
-    });
-  }
-
-  return ClassApplicationMapper.toDTO(application);
+  return ClassApplicationMapper.toDTO(
+    await classApplicationRepository.findById(applicationId),
+  );
 };
 
 // Người đăng xem danh sách gia sư ứng tuyển bài đăng của mình (sắp theo số lớp đã dạy giảm dần).
@@ -133,29 +183,40 @@ const selectApplicant = async (userId, classId, applicationId) => {
     throw new AppError(MESSAGE.CLASS_APPLICANT_NOT_PENDING, HTTP_STATUS.BAD_REQUEST);
   }
 
-  // Nếu trước đó đã chọn gia sư khác (selected) → đưa họ về lại pending để chọn lại linh hoạt
-  await classApplicationRepository.resetOtherSelectedToPending(classId, applicationId);
-  const updated = await classApplicationRepository.update(applicationId, {
-    status: CLASS_APPLICATION_STATUS.SELECTED,
-  });
-
   const tutor = application.tutorId;
   const tutorUserId = tutor.userId?._id ?? tutor.userId;
   const tutorName = tutor.userId?.fullName || "Gia sư";
+  const transitionId = randomUUID();
 
-  await Promise.all([
-    notificationService.createNotification({
+  await withTransaction(async (session) => {
+    const currentClass = await classRepository.guardOpen(classId, { session });
+    if (!currentClass) {
+      throw new AppError(MESSAGE.CLASS_APPLICANT_CLASS_NOT_OPEN, HTTP_STATUS.CONFLICT);
+    }
+    await classApplicationRepository.resetOtherSelectedToPending(classId, applicationId, { session });
+    const transitioned = await classApplicationRepository.transitionStatus(
+      applicationId,
+      CLASS_APPLICATION_STATUS.PENDING,
+      { status: CLASS_APPLICATION_STATUS.SELECTED },
+      { session },
+    );
+    if (!transitioned) {
+      throw new AppError(MESSAGE.CLASS_APPLICANT_NOT_PENDING, HTTP_STATUS.CONFLICT);
+    }
+    await outboxService.enqueueNotification({
+      dedupeKey: `class-application:${applicationId}:selected:${transitionId}:tutor`,
       userId: tutorUserId,
       type: NOTIFICATION_TYPES.CLASS_APPLICATION_SELECTED,
       message: `Bạn đã được người đăng chọn cho lớp ${classItem.classCode} - Môn: ${classItem.subject}. Đang chờ admin duyệt.`,
-    }),
-    notifyAdmins(
+    }, { session });
+    await notifyAdmins(
       NOTIFICATION_TYPES.CLASS_APPLICATION_SELECTED,
       `Người đăng đã chọn gia sư ${tutorName} cho lớp ${classItem.classCode} - Môn: ${classItem.subject}. Vui lòng duyệt lớp.`,
-    ),
-  ]);
+      { session, dedupePrefix: `class-application:${applicationId}:selected:${transitionId}:admin` },
+    );
+  });
 
-  return ClassApplicationMapper.toDTO(updated);
+  return ClassApplicationMapper.toDTO(await classApplicationRepository.findById(applicationId));
 };
 
 // Lấy danh sách đơn ứng tuyển của gia sư kèm thống kê theo trạng thái
@@ -199,18 +260,17 @@ const getMyApplications = async (userId, query = {}) => {
 };
 
 // Gửi thông báo cho tất cả admin
-const notifyAdmins = async (type, message) => {
+const notifyAdmins = async (type, message, { session, dedupePrefix }) => {
   const admins = await userRepository.findAllByRole(ROLES.ADMIN);
-  await Promise.all(
-    admins.map((admin) =>
-      notificationService.createNotification({
-        userId: admin._id,
-        type,
-        message,
-        audience: NOTIFICATION_AUDIENCE.ADMIN,
-      })
-    )
-  );
+  for (const admin of admins) {
+    await outboxService.enqueueNotification({
+      dedupeKey: `${dedupePrefix}:${admin._id}`,
+      userId: admin._id,
+      type,
+      message,
+      audience: NOTIFICATION_AUDIENCE.ADMIN,
+    }, { session });
+  }
 };
 
 // Gia sư rút/huỷ đơn nhận lớp (pending: huỷ ngay; approved: gửi yêu cầu huỷ chờ admin duyệt)
@@ -227,27 +287,51 @@ const cancelApplication = async (userId, applicationId, reason) => {
   const classItem = application.classId;
 
   if (application.status === CLASS_APPLICATION_STATUS.PENDING) {
-    const updated = await classApplicationRepository.update(applicationId, {
-      status: CLASS_APPLICATION_STATUS.CANCELLED,
-      cancellationReason: reason,
+    await withTransaction(async (session) => {
+      const transitioned = await classApplicationRepository.transitionStatus(
+        applicationId,
+        CLASS_APPLICATION_STATUS.PENDING,
+        { status: CLASS_APPLICATION_STATUS.CANCELLED, cancellationReason: reason },
+        { session },
+      );
+      if (!transitioned) {
+        throw new AppError(MESSAGE.CLASS_APPLICATION_CANCEL_INVALID_STATUS, HTTP_STATUS.CONFLICT);
+      }
+      await notifyAdmins(
+        NOTIFICATION_TYPES.CLASS_APPLICATION_CANCELLED,
+        `Gia sư đã hủy đơn nhận lớp ${classItem.classCode} (Môn: ${classItem.subject}).`,
+        { session, dedupePrefix: `class-application:${applicationId}:cancelled:admin` },
+      );
     });
-    await notifyAdmins(
-      NOTIFICATION_TYPES.CLASS_APPLICATION_CANCELLED,
-      `Gia sư đã hủy đơn nhận lớp ${classItem.classCode} (Môn: ${classItem.subject}).`
-    );
-    return ClassApplicationMapper.toDTO(updated);
+    return ClassApplicationMapper.toDTO(await classApplicationRepository.findById(applicationId));
   }
 
   if (application.status === CLASS_APPLICATION_STATUS.APPROVED) {
-    const updated = await classApplicationRepository.update(applicationId, {
-      status: CLASS_APPLICATION_STATUS.CANCEL_REQUESTED,
-      cancellationReason: reason,
+    const transitionId = randomUUID();
+    await withTransaction(async (session) => {
+      const matchedClass = await classRepository.guardMatched(classItem._id, { session });
+      if (!matchedClass) {
+        throw new AppError(MESSAGE.CLASS_COMPLETE_ONLY_MATCHED, HTTP_STATUS.CONFLICT);
+      }
+      const transitioned = await classApplicationRepository.transitionStatus(
+        applicationId,
+        CLASS_APPLICATION_STATUS.APPROVED,
+        { status: CLASS_APPLICATION_STATUS.CANCEL_REQUESTED, cancellationReason: reason },
+        { session },
+      );
+      if (!transitioned) {
+        throw new AppError(MESSAGE.CLASS_APPLICATION_CANCEL_INVALID_STATUS, HTTP_STATUS.CONFLICT);
+      }
+      await notifyAdmins(
+        NOTIFICATION_TYPES.CLASS_APPLICATION_CANCEL_REQUESTED,
+        `Gia sư xin hủy lớp đã nhận ${classItem.classCode} (Môn: ${classItem.subject}), cần được duyệt.`,
+        {
+          session,
+          dedupePrefix: `class-application:${applicationId}:cancel-requested:${transitionId}:admin`,
+        },
+      );
     });
-    await notifyAdmins(
-      NOTIFICATION_TYPES.CLASS_APPLICATION_CANCEL_REQUESTED,
-      `Gia sư xin hủy lớp đã nhận ${classItem.classCode} (Môn: ${classItem.subject}), cần được duyệt.`
-    );
-    return ClassApplicationMapper.toDTO(updated);
+    return ClassApplicationMapper.toDTO(await classApplicationRepository.findById(applicationId));
   }
 
   throw new AppError(MESSAGE.CLASS_APPLICATION_CANCEL_INVALID_STATUS, HTTP_STATUS.BAD_REQUEST);
@@ -300,34 +384,40 @@ const acceptInvitation = async (userId, applicationId) => {
   const application = await findOwnPendingInvitation(userId, applicationId);
   const classItem = application.classId;
 
-  const updated = await classApplicationRepository.update(applicationId, {
-    status: CLASS_APPLICATION_STATUS.SELECTED,
-  });
-
   const tutorUser = await userRepository.findById(userId);
   const tutorName = tutorUser?.fullName || "Gia sư";
   const posterUserId = classItem.createdBy?._id ?? classItem.createdBy;
 
-  await Promise.all([
-    // Báo cho chính gia sư: đã nhận lớp, đang chờ admin duyệt
-    notificationService.createNotification({
+  await withTransaction(async (session) => {
+    const openClass = await classRepository.guardOpen(classItem._id, { session });
+    if (!openClass) throw new AppError(MESSAGE.CLASS_APPLICANT_CLASS_NOT_OPEN, HTTP_STATUS.CONFLICT);
+    const transitioned = await classApplicationRepository.transitionStatus(
+      applicationId,
+      CLASS_APPLICATION_STATUS.INVITED,
+      { status: CLASS_APPLICATION_STATUS.SELECTED },
+      { session },
+    );
+    if (!transitioned) throw new AppError(MESSAGE.CLASS_INVITE_NOT_PENDING, HTTP_STATUS.CONFLICT);
+    await outboxService.enqueueNotification({
+      dedupeKey: `class-application:${applicationId}:invite-accepted:tutor`,
       userId,
       type: NOTIFICATION_TYPES.CLASS_APPLICATION_SELECTED,
       message: `Bạn đã đồng ý nhận lớp ${classItem.classCode} (Môn: ${classItem.subject}). Vui lòng chờ admin xét duyệt.`,
-    }),
-    posterUserId &&
-      notificationService.createNotification({
-        userId: posterUserId,
-        type: NOTIFICATION_TYPES.CLASS_INVITE_ACCEPTED,
-        message: `Gia sư ${tutorName} đã đồng ý nhận lớp ${classItem.classCode} (Môn: ${classItem.subject}) của bạn. Vui lòng chờ admin xét duyệt.`,
-      }),
-    notifyAdmins(
+    }, { session });
+    await outboxService.enqueueNotification({
+      dedupeKey: `class-application:${applicationId}:invite-accepted:poster`,
+      userId: posterUserId,
+      type: NOTIFICATION_TYPES.CLASS_INVITE_ACCEPTED,
+      message: `Gia sư ${tutorName} đã đồng ý nhận lớp ${classItem.classCode} (Môn: ${classItem.subject}) của bạn. Vui lòng chờ admin xét duyệt.`,
+    }, { session });
+    await notifyAdmins(
       NOTIFICATION_TYPES.CLASS_APPLICATION_SELECTED,
       `Gia sư ${tutorName} đã đồng ý lời mời lớp ${classItem.classCode} - Môn: ${classItem.subject}. Vui lòng duyệt lớp.`,
-    ),
-  ]);
+      { session, dedupePrefix: `class-application:${applicationId}:invite-accepted:admin` },
+    );
+  });
 
-  return ClassApplicationMapper.toDTO(updated);
+  return ClassApplicationMapper.toDTO(await classApplicationRepository.findById(applicationId));
 };
 
 // Gia sư từ chối lời mời (kèm lý do) → đơn INVITE_DECLINED, báo người đăng (KHÔNG qua admin).
@@ -335,27 +425,31 @@ const declineInvitation = async (userId, applicationId, reason) => {
   const application = await findOwnPendingInvitation(userId, applicationId);
   const classItem = application.classId;
 
-  const updated = await classApplicationRepository.update(applicationId, {
-    status: CLASS_APPLICATION_STATUS.INVITE_DECLINED,
-    rejectionReason: reason,
-  });
-
   const tutorUser = await userRepository.findById(userId);
   const tutorName = tutorUser?.fullName || "Gia sư";
   const posterUserId = classItem.createdBy?._id ?? classItem.createdBy;
 
-  if (posterUserId) {
-    await notificationService.createNotification({
+  await withTransaction(async (session) => {
+    const transitioned = await classApplicationRepository.transitionStatus(
+      applicationId,
+      CLASS_APPLICATION_STATUS.INVITED,
+      { status: CLASS_APPLICATION_STATUS.INVITE_DECLINED, rejectionReason: reason },
+      { session },
+    );
+    if (!transitioned) throw new AppError(MESSAGE.CLASS_INVITE_NOT_PENDING, HTTP_STATUS.CONFLICT);
+    await outboxService.enqueueNotification({
+      dedupeKey: `class-application:${applicationId}:invite-declined:poster`,
       userId: posterUserId,
       type: NOTIFICATION_TYPES.CLASS_INVITE_DECLINED,
       message: `Gia sư ${tutorName} đã từ chối dạy lớp ${classItem.classCode} (Môn: ${classItem.subject}) của bạn. Lý do: ${reason}`,
-    });
-  }
+    }, { session });
+  });
 
-  return ClassApplicationMapper.toDTO(updated);
+  return ClassApplicationMapper.toDTO(await classApplicationRepository.findById(applicationId));
 };
 
 module.exports = {
+  getClassApplicationEligibilityError,
   applyForClass,
   getApplicantsForPoster,
   selectApplicant,

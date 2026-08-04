@@ -3,7 +3,7 @@ const reviewRepository = require("../repositories/review.repository");
 const tutorRepository = require("../repositories/tutor.repository");
 const classRepository = require("../repositories/class.repository");
 const classApplicationRepository = require("../repositories/class.application.repository");
-const notificationService = require("./notification.service");
+const outboxService = require("./outbox.service");
 const { NOTIFICATION_TYPES } = require("../constants/notification");
 const { CLASS_STATUS } = require("../constants/class");
 const { ReviewMapper } = require("../mappers");
@@ -11,6 +11,7 @@ const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 const { buildPagination } = require("../utils/pagination");
+const { withTransaction } = require("../utils/transaction");
 
 // Kiểm tra id có phải ObjectId hợp lệ, không thì ném lỗi 404
 const assertValidObjectId = (id, message) => {
@@ -20,10 +21,14 @@ const assertValidObjectId = (id, message) => {
 };
 
 // Tính lại điểm trung bình của gia sư từ các đánh giá còn hiệu lực và lưu vào hồ sơ
-const recomputeTutorRating = async (tutorId) => {
-  const { sum, count } = await reviewRepository.aggregateActiveByTutor(tutorId);
+const recomputeTutorRating = async (tutorId, { session } = {}) => {
+  const { sum, count } = await reviewRepository.aggregateActiveByTutor(tutorId, { session });
   const averageRating = count > 0 ? Math.round((sum / count) * 10) / 10 : 0;
-  await tutorRepository.update(tutorId, { ratingSum: sum, reviewCount: count, averageRating });
+  await tutorRepository.update(
+    tutorId,
+    { ratingSum: sum, reviewCount: count, averageRating },
+    { session },
+  );
   return { ratingSum: sum, reviewCount: count, averageRating };
 };
 
@@ -58,20 +63,32 @@ const createReview = async (reviewerId, { classId, rating, comment }) => {
     throw new AppError(MESSAGE.REVIEW_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
   }
 
-  const review = await reviewRepository.create({ tutorId, classId, reviewerId, rating, comment });
-
-  const summary = await recomputeTutorRating(tutorId);
-
-  // Thông báo cho gia sư về đánh giá mới
   const tutorUserId = tutor?.userId?._id ?? tutor?.userId;
-  if (tutorUserId) {
-    await notificationService.createNotification({
-      userId: tutorUserId,
-      type: NOTIFICATION_TYPES.REVIEW_RECEIVED,
-      message: `Bạn vừa nhận được đánh giá ${rating} sao cho lớp ${classItem.classCode}. Xem trong trang chi tiết của bạn.`,
+  let reviewId;
+  let summary;
+  try {
+    await withTransaction(async (session) => {
+      const review = await reviewRepository.create(
+        { tutorId, classId, reviewerId, rating, comment },
+        { session },
+      );
+      reviewId = review._id;
+      summary = await recomputeTutorRating(tutorId, { session });
+      await outboxService.enqueueNotification({
+        dedupeKey: `review:${review._id}:received`,
+        userId: tutorUserId,
+        type: NOTIFICATION_TYPES.REVIEW_RECEIVED,
+        message: `Bạn vừa nhận được đánh giá ${rating} sao cho lớp ${classItem.classCode}. Xem trong trang chi tiết của bạn.`,
+      }, { session });
     });
+  } catch (error) {
+    if (error?.code === 11000) {
+      throw new AppError(MESSAGE.REVIEW_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
+    }
+    throw error;
   }
 
+  const review = await reviewRepository.findById(reviewId);
   await review.populate({ path: "reviewerId", select: "fullName avatar" });
 
   return {
@@ -126,21 +143,20 @@ const replyToReview = async (tutorUserId, reviewId, comment) => {
   }
 
   const reply = { comment: comment.trim(), repliedAt: new Date() };
-  // Cập nhật nguyên tử (guard reply:null) để chặn phản hồi đúp khi gọi song song
-  const updated = await reviewRepository.setReply(reviewId, reply);
-  if (!updated) {
-    throw new AppError(MESSAGE.REVIEW_REPLY_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
-  }
-
-  // Thông báo cho người đăng (người viết đánh giá) rằng gia sư đã phản hồi
-  if (review.reviewerId) {
-    await notificationService.createNotification({
+  await withTransaction(async (session) => {
+    const updated = await reviewRepository.setReply(reviewId, reply, { session });
+    if (!updated) {
+      throw new AppError(MESSAGE.REVIEW_REPLY_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
+    }
+    await outboxService.enqueueNotification({
+      dedupeKey: `review:${reviewId}:replied`,
       userId: review.reviewerId,
       type: NOTIFICATION_TYPES.REVIEW_REPLIED,
       message: MESSAGE.NOTIF_REVIEW_REPLIED,
-    });
-  }
+    }, { session });
+  });
 
+  const updated = await reviewRepository.findById(reviewId);
   await updated.populate({ path: "reviewerId", select: "fullName avatar" });
 
   return { review: ReviewMapper.toDTO(updated) };
@@ -198,9 +214,11 @@ const getTutorReviewsForAdmin = async (tutorId, query = {}) => {
 // Admin xóa mềm một đánh giá (đưa vào thùng rác) + cập nhật lại điểm gia sư
 const softDeleteReview = async (reviewId, adminUserId) => {
   assertValidObjectId(reviewId, MESSAGE.REVIEW_NOT_FOUND);
-  const deleted = await reviewRepository.softDelete(reviewId, adminUserId);
-  if (!deleted) throw new AppError(MESSAGE.REVIEW_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-  await recomputeTutorRating(deleted.tutorId);
+  await withTransaction(async (session) => {
+    const deleted = await reviewRepository.softDelete(reviewId, adminUserId, { session });
+    if (!deleted) throw new AppError(MESSAGE.REVIEW_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    await recomputeTutorRating(deleted.tutorId, { session });
+  });
   return { id: reviewId };
 };
 

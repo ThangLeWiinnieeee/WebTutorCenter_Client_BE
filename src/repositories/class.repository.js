@@ -37,14 +37,14 @@ const buildFeedMatchFilter = ({ subjects, genderPrefs, levelPrefs, provinceCode 
 };
 
 // Tạo bài đăng lớp mới
-const create = async (payload) => {
+const create = async (payload, { session } = {}) => {
   const doc = new ClassModel(payload);
-  return await doc.save();
+  return await doc.save({ session });
 };
 
 // Tìm một bài đăng theo id (bỏ bài đã xoá mềm)
-const findById = async (id) => {
-  return await ClassModel.findOne({ _id: id, ...NOT_DELETED }).lean();
+const findById = async (id, { session } = {}) => {
+  return await ClassModel.findOne({ _id: id, ...NOT_DELETED }).session(session || null).lean();
 };
 
 // Kiểm tra trùng mã lớp — phải xét cả bài đăng đã xóa mềm để tránh tái dùng mã
@@ -114,6 +114,54 @@ const countByFeedCriteriaSince = async (criteria = {}, since, excludeIds = []) =
 // Cập nhật trạng thái vòng đời của một bài đăng
 const updateStatus = async (id, status) => {
   return await ClassModel.findByIdAndUpdate(id, { status }, { new: true }).lean();
+};
+
+const transitionStatus = async (id, expectedStatus, updateData, { session } = {}) => {
+  const status = Array.isArray(expectedStatus) ? { $in: expectedStatus } : expectedStatus;
+  return ClassModel.findOneAndUpdate(
+    { _id: id, status, ...NOT_DELETED },
+    updateData,
+    { new: true, session },
+  ).lean();
+};
+
+// CAS guard đồng thời ghi updatedAt để các transaction trên lớp cùng tranh chấp một document.
+const guardOpen = async (id, { session } = {}) => {
+  return ClassModel.findOneAndUpdate(
+    { _id: id, status: CLASS_STATUS.OPEN, ...NOT_DELETED },
+    { $set: { updatedAt: new Date() } },
+    { new: true, session },
+  ).lean();
+};
+
+const guardMatched = async (id, { session } = {}) => {
+  return ClassModel.findOneAndUpdate(
+    { _id: id, status: CLASS_STATUS.MATCHED, ...NOT_DELETED },
+    { $set: { updatedAt: new Date() } },
+    { new: true, session },
+  ).lean();
+};
+
+const confirmCompletionBy = async (id, field, { session } = {}) => {
+  return ClassModel.findOneAndUpdate(
+    { _id: id, status: CLASS_STATUS.MATCHED, [field]: { $ne: true }, ...NOT_DELETED },
+    { $set: { [field]: true } },
+    { new: true, session },
+  ).lean();
+};
+
+const markSelectionReminderSent = async (id, now, deadline, { session } = {}) => {
+  return ClassModel.findOneAndUpdate(
+    {
+      _id: id,
+      status: CLASS_STATUS.OPEN,
+      selectionReminderSentAt: null,
+      startDate: { $gt: now, $lte: deadline },
+      ...NOT_DELETED,
+    },
+    { $set: { selectionReminderSentAt: now } },
+    { new: true, session },
+  ).lean();
 };
 
 // Cập nhật một số field của bài đăng (vd cờ hoàn thành)
@@ -268,6 +316,11 @@ module.exports = {
   findByFeedCriteria,
   countByFeedCriteriaSince,
   updateStatus,
+  transitionStatus,
+  guardOpen,
+  guardMatched,
+  confirmCompletionBy,
+  markSelectionReminderSent,
   update,
   findExpirableClasses,
   findSelectionReminderDueClasses,

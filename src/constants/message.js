@@ -94,6 +94,7 @@ const MESSAGE = {
   PAYMENT_INIT_SUCCESS: "Đang chuyển đến cổng thanh toán VNPay...",
   PAYMENT_APPLICATION_NOT_APPROVED: "Chỉ có thể thanh toán phí cho lớp đã được admin duyệt",
   PAYMENT_ALREADY_PAID: "Bạn đã thanh toán phí nhận lớp này rồi",
+  PAYMENT_PENDING_EXISTS: "Đã có một giao dịch đang chờ xử lý cho lớp này",
   PAYMENT_INVALID_AMOUNT: "Không xác định được số tiền phí nhận lớp",
   PAYMENT_NOT_FOUND: "Không tìm thấy giao dịch thanh toán",
   PAYMENT_LIST_SUCCESS: "Lấy lịch sử thanh toán thành công",
@@ -204,6 +205,9 @@ const MESSAGE = {
   CLASS_APPLICATION_CLASS_TAKEN: "Lớp này đã có gia sư được chọn hoặc đang xử lý, không thể nhận nữa.",
   CLASS_APPLICATION_DOCS_REQUIRED:
     "Bạn cần bổ sung ảnh CCCD và thẻ sinh viên/bằng cấp trong hồ sơ trước khi nhận lớp.",
+  CLASS_APPLICATION_SUBJECT_MISMATCH: "Bạn chưa đăng ký dạy môn học của lớp này.",
+  CLASS_APPLICATION_GENDER_MISMATCH: "Giới tính của bạn không đáp ứng yêu cầu của lớp này.",
+  CLASS_APPLICATION_LEVEL_MISMATCH: "Trình độ của bạn không đáp ứng yêu cầu của lớp này.",
   TUTOR_NOT_APPROVED: "Hồ sơ gia sư của bạn chưa được phê duyệt",
 
   // Profile change — giấy tờ

@@ -7,19 +7,29 @@ const POPULATE_CLASS = "classCode subject";
 const TZ = "+07:00";
 
 // Tạo bản ghi thanh toán mới
-const create = async (data) => {
+const create = async (data, { session } = {}) => {
   const doc = new Payment(data);
-  return await doc.save();
+  return await doc.save({ session });
 };
 
 // Tìm giao dịch theo mã tham chiếu (txnRef)
-const findByTxnRef = async (txnRef) => {
-  return await Payment.findOne({ txnRef }).populate("classId", POPULATE_CLASS);
+const findByTxnRef = async (txnRef, { session } = {}) => {
+  return await Payment.findOne({ txnRef })
+    .session(session || null)
+    .populate("classId", POPULATE_CLASS);
 };
 
 // Cập nhật một giao dịch theo id
 const updateById = async (id, updateData) => {
   return await Payment.findByIdAndUpdate(id, updateData, { new: true });
+};
+
+const transitionStatus = async (id, expectedStatus, updateData, { session } = {}) => {
+  return Payment.findOneAndUpdate(
+    { _id: id, status: expectedStatus },
+    updateData,
+    { new: true, runValidators: true, session },
+  );
 };
 
 // Một trang hóa đơn thanh toán phí nhận lớp của một gia sư (mới nhất trước).
@@ -98,6 +108,7 @@ module.exports = {
   create,
   findByTxnRef,
   updateById,
+  transitionStatus,
   findByTutorUserIdPage,
   findPageForAdmin,
   aggregateStatusSummary,

@@ -27,14 +27,15 @@ const ACTIVE_STATUSES = [
 ];
 
 // Tạo đơn nhận lớp mới
-const create = async (data) => {
+const create = async (data, { session } = {}) => {
   const doc = new ClassApplication(data);
-  return await doc.save();
+  return await doc.save({ session });
 };
 
 // Lấy chi tiết một đơn nhận lớp (kèm lớp và gia sư)
-const findById = async (id) => {
+const findById = async (id, { session } = {}) => {
   return await ClassApplication.findById(id)
+    .session(session || null)
     .populate("classId", POPULATE_CLASS)
     .populate({
       path: "tutorId",
@@ -48,22 +49,22 @@ const findByClassAndTutor = async (classId, tutorId) => {
 };
 
 // Đơn đã được duyệt (gia sư đang nhận) của một lớp — để xác định gia sư đã ghép
-const findApprovedByClassId = async (classId) => {
+const findApprovedByClassId = async (classId, { session } = {}) => {
   return await ClassApplication.findOne({
     classId,
     status: CLASS_APPLICATION_STATUS.APPROVED,
-  }).populate({
+  }).session(session || null).populate({
     path: "tutorId",
     populate: { path: "userId", select: POPULATE_TUTOR_USER },
   });
 };
 
 // Tìm đơn đang khoá một lớp (đã chọn/ghép/xin huỷ gia sư)
-const findLockingByClassId = async (classId) => {
+const findLockingByClassId = async (classId, { session } = {}) => {
   return await ClassApplication.findOne({
     classId,
     status: { $in: LOCK_STATUSES },
-  }).lean();
+  }).session(session || null).lean();
 };
 
 // Đơn đã được duyệt cho NHIỀU bài đăng cùng lúc — để hiển thị gia sư đã ghép trong
@@ -129,12 +130,12 @@ const findApplicantsByClassId = async (classId) => {
 
 // Các đơn ứng tuyển còn lại của một bài đăng (pending/selected) ngoại trừ đơn được chọn —
 // dùng để đánh dấu "không được chọn" khi admin duyệt, và để báo cho các gia sư đó.
-const findPeersToReject = async (classId, exceptApplicationId) => {
+const findPeersToReject = async (classId, exceptApplicationId, { session } = {}) => {
   return await ClassApplication.find({
     classId,
     _id: { $ne: exceptApplicationId },
     status: { $in: [CLASS_APPLICATION_STATUS.PENDING, CLASS_APPLICATION_STATUS.SELECTED] },
-  }).populate({
+  }).session(session || null).populate({
     path: "tutorId",
     populate: { path: "userId", select: POPULATE_TUTOR_USER },
   });
@@ -142,19 +143,24 @@ const findPeersToReject = async (classId, exceptApplicationId) => {
 
 // Đưa các đơn đang SELECTED khác (ngoài đơn vừa chọn) của một bài đăng về lại PENDING —
 // dùng khi người đăng đổi lựa chọn sang gia sư khác.
-const resetOtherSelectedToPending = async (classId, exceptApplicationId) => {
+const resetOtherSelectedToPending = async (classId, exceptApplicationId, { session } = {}) => {
   return await ClassApplication.updateMany(
     { classId, _id: { $ne: exceptApplicationId }, status: CLASS_APPLICATION_STATUS.SELECTED },
     { status: CLASS_APPLICATION_STATUS.PENDING },
+    { session },
   );
 };
 
 // Đánh dấu nhiều đơn → not_selected (các ứng viên không được chọn khi lớp đã ghép)
-const markNotSelected = async (applicationIds = []) => {
+const markNotSelected = async (applicationIds = [], { session } = {}) => {
   if (!applicationIds.length) return { modifiedCount: 0 };
   return await ClassApplication.updateMany(
-    { _id: { $in: applicationIds } },
+    {
+      _id: { $in: applicationIds },
+      status: { $in: [CLASS_APPLICATION_STATUS.PENDING, CLASS_APPLICATION_STATUS.SELECTED] },
+    },
     { status: CLASS_APPLICATION_STATUS.NOT_SELECTED },
+    { session },
   );
 };
 
@@ -284,13 +290,43 @@ const findInviteByClassIds = async (classIds = []) => {
 };
 
 // Cập nhật một đơn nhận lớp
-const update = async (id, updateData) => {
-  return await ClassApplication.findByIdAndUpdate(id, updateData, { new: true })
+const update = async (id, updateData, { session } = {}) => {
+  return await ClassApplication.findByIdAndUpdate(id, updateData, { new: true, session })
     .populate("classId", POPULATE_CLASS)
     .populate({
       path: "tutorId",
       populate: { path: "userId", select: POPULATE_TUTOR_USER },
     });
+};
+
+// CAS: chỉ chuyển khi document vẫn ở trạng thái mà caller đã kiểm tra.
+const transitionStatus = async (id, expectedStatus, updateData, { session } = {}) => {
+  return ClassApplication.findOneAndUpdate(
+    { _id: id, status: expectedStatus },
+    updateData,
+    { new: true, runValidators: true, session },
+  );
+};
+
+// CAS ghi nhận phí đúng một lần. Trạng thái đơn có thể đổi trong lúc người dùng ở cổng thanh toán.
+const markFeePaid = async (id, { session } = {}) => {
+  return ClassApplication.findOneAndUpdate(
+    { _id: id, feePaid: { $ne: true } },
+    { $set: { feePaid: true } },
+    { new: true, session },
+  );
+};
+
+const guardFeePayment = async (id, { session } = {}) => {
+  return ClassApplication.findOneAndUpdate(
+    {
+      _id: id,
+      status: CLASS_APPLICATION_STATUS.APPROVED,
+      feePaid: { $ne: true },
+    },
+    { $set: { updatedAt: new Date() } },
+    { new: true, session },
+  );
 };
 
 // Đơn đang chờ ADMIN duyệt nhận lớp = đã được người đăng chọn (SELECTED).
@@ -383,6 +419,9 @@ module.exports = {
   findInvitationsByTutor,
   findInviteByClassIds,
   update,
+  transitionStatus,
+  markFeePaid,
+  guardFeePayment,
   countSelected,
   countAll,
   countActiveByClassId,
