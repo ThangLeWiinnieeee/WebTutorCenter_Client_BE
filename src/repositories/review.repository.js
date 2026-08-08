@@ -5,13 +5,13 @@ const REVIEWER_FIELDS = "fullName avatar";
 const TUTOR_USER_FIELDS = "fullName avatar";
 
 // Tạo một đánh giá mới
-const create = async (data) => {
+const create = async (data, { session } = {}) => {
   const doc = new Review(data);
-  return await doc.save();
+  return await doc.save({ session });
 };
 
 // Tìm một đánh giá theo id
-const findById = async (id) => Review.findById(id);
+const findById = async (id, { session } = {}) => Review.findById(id).session(session || null);
 
 // Đánh giá còn hiệu lực (chưa xóa mềm) của một lớp do một người đăng viết — chặn đánh giá trùng
 const findActiveByClassAndReviewer = async (classId, reviewerId) =>
@@ -51,11 +51,13 @@ const findActiveByTutorIdForAdmin = async (tutorId, { page = 1, limit = 10 } = {
 };
 
 // Tổng số sao + số lượt của đánh giá còn hiệu lực của một gia sư — để tính lại điểm trung bình
-const aggregateActiveByTutor = async (tutorId) => {
-  const rows = await Review.aggregate([
+const aggregateActiveByTutor = async (tutorId, { session } = {}) => {
+  const aggregate = Review.aggregate([
     { $match: { tutorId: new mongoose.Types.ObjectId(String(tutorId)), deletedAt: null } },
     { $group: { _id: "$tutorId", sum: { $sum: "$rating" }, count: { $sum: 1 } } },
   ]);
+  if (session) aggregate.session(session);
+  const rows = await aggregate;
   return rows[0] ? { sum: rows[0].sum, count: rows[0].count } : { sum: 0, count: 0 };
 };
 
@@ -70,27 +72,27 @@ const findReviewedClassIds = async (reviewerId, classIds = []) => {
 };
 
 // Gia sư phản hồi đánh giá (guard reply:null để không phản hồi đúp khi có race)
-const setReply = async (id, reply) =>
+const setReply = async (id, reply, { session } = {}) =>
   Review.findOneAndUpdate(
     { _id: id, deletedAt: null, reply: null },
     { reply },
-    { new: true }
+    { new: true, session }
   );
 
 // Xóa mềm: đưa đánh giá vào thùng rác
-const softDelete = async (id, adminUserId) =>
+const softDelete = async (id, adminUserId, { session } = {}) =>
   Review.findOneAndUpdate(
     { _id: id, deletedAt: null },
     { deletedAt: new Date(), deletedBy: adminUserId },
-    { new: true }
+    { new: true, session }
   );
 
 // Khôi phục đánh giá khỏi thùng rác
-const restore = async (id) =>
+const restore = async (id, { session } = {}) =>
   Review.findOneAndUpdate(
     { _id: id, deletedAt: { $ne: null } },
     { deletedAt: null, deletedBy: null },
-    { new: true }
+    { new: true, session }
   );
 
 // Danh sách đánh giá trong thùng rác (đã xóa mềm) — kèm gia sư, người đánh giá, lớp

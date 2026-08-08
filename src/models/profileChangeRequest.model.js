@@ -45,6 +45,15 @@ const profileChangeRequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+profileChangeRequestSchema.index(
+  { tutorId: 1 },
+  {
+    name: "uniq_pending_profile_change_per_tutor",
+    unique: true,
+    partialFilterExpression: { status: PROFILE_CHANGE_STATUS.PENDING },
+  },
+);
+
 const ProfileChangeRequest = mongoose.model("ProfileChangeRequest", profileChangeRequestSchema);
 
 module.exports = ProfileChangeRequest;

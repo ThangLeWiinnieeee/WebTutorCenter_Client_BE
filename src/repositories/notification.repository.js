@@ -13,8 +13,17 @@ const withAudience = (filter, audience) => {
 };
 
 // Tạo một thông báo mới
-const create = async ({ userId, type, message, audience }) => {
-  return Notification.create({ userId, type, message, audience });
+const create = async ({ userId, type, message, audience, eventKey }, { session } = {}) => {
+  const data = { userId, type, message, audience, ...(eventKey ? { eventKey } : {}) };
+  if (eventKey) {
+    return Notification.findOneAndUpdate(
+      { eventKey },
+      { $setOnInsert: data },
+      { new: true, upsert: true, setDefaultsOnInsert: true, session },
+    );
+  }
+  const [notification] = await Notification.create([data], { session });
+  return notification;
 };
 
 // Một trang thông báo của người dùng, mới nhất trước.

@@ -16,8 +16,8 @@ const findByUserId = async (userId) => {
 };
 
 // Tìm hồ sơ gia sư theo id (kèm thông tin người dùng)
-const findById = async (id) => {
-  return await Tutor.findById(id).populate("userId", POPULATE_USER);
+const findById = async (id, { session } = {}) => {
+  return await Tutor.findById(id).session(session || null).populate("userId", POPULATE_USER);
 };
 
 // Tạo hồ sơ gia sư mới
@@ -27,9 +27,36 @@ const create = async (tutorData) => {
 };
 
 // Cập nhật hồ sơ gia sư
-const update = async (tutorId, updateData) => {
-  return await Tutor.findByIdAndUpdate(tutorId, updateData, { new: true, runValidators: true })
+const update = async (tutorId, updateData, { session } = {}) => {
+  return await Tutor.findByIdAndUpdate(tutorId, updateData, { new: true, runValidators: true, session })
     .populate("userId", POPULATE_USER);
+};
+
+const transitionStatus = async (tutorId, expectedStatus, updateData, { session } = {}) => {
+  return Tutor.findOneAndUpdate(
+    { _id: tutorId, status: expectedStatus },
+    updateData,
+    { new: true, runValidators: true, session },
+  );
+};
+
+const decrementClassStats = async (tutorId, { session } = {}) => {
+  return Tutor.findByIdAndUpdate(
+    tutorId,
+    [
+      {
+        $set: {
+          totalClassesAccepted: {
+            $max: [0, { $subtract: [{ $ifNull: ["$totalClassesAccepted", 0] }, 1] }],
+          },
+          classesAcceptedThisMonth: {
+            $max: [0, { $subtract: [{ $ifNull: ["$classesAcceptedThisMonth", 0] }, 1] }],
+          },
+        },
+      },
+    ],
+    { new: true, session },
+  );
 };
 
 // Một trang hồ sơ gia sư đang chờ duyệt, mới nhất trước.
@@ -334,6 +361,8 @@ module.exports = {
   findTrustedTutorIds,
   create,
   update,
+  transitionStatus,
+  decrementClassStats,
   findPendingPage,
   countByStatus,
   findAllApproved,

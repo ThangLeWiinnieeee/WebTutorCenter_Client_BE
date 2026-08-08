@@ -1,7 +1,7 @@
 const classRepository = require("../repositories/class.repository");
 const classApplicationRepository = require("../repositories/class.application.repository");
 const tutorRepository = require("../repositories/tutor.repository");
-const notificationService = require("./notification.service");
+const outboxService = require("./outbox.service");
 const { NOTIFICATION_TYPES } = require("../constants/notification");
 const { CLASS_APPLICATION_STATUS } = require("../constants/classApplication");
 const { CLASS_STATUS } = require("../constants/class");
@@ -10,6 +10,8 @@ const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 const { ClassApplicationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
+const { withTransaction } = require("../utils/transaction");
+const { randomUUID } = require("node:crypto");
 
 // Lấy danh sách yêu cầu huỷ đơn nhận lớp kèm thống kê theo trạng thái
 const getApplicationCancellations = async (query = {}) => {
@@ -44,10 +46,6 @@ const approveCancellation = async (applicationId) => {
     throw new AppError(MESSAGE.CLASS_APPLICATION_CANCEL_NOT_REQUESTED, HTTP_STATUS.BAD_REQUEST);
   }
 
-  const updated = await classApplicationRepository.update(applicationId, {
-    status: CLASS_APPLICATION_STATUS.CANCELLED,
-  });
-
   const tutor = application.tutorId;
   const tutorUserId = tutor.userId?._id ?? tutor.userId;
   const classItem = application.classId;
@@ -55,26 +53,42 @@ const approveCancellation = async (applicationId) => {
   // Gia sư rút lớp đã nhận → mở lại cho người khác nếu chưa tới giờ học, ngược lại đánh dấu hết hạn.
   // Reset cờ hoàn thành vì gia sư đã thay đổi.
   const stillUpcoming = classItem.startDate && new Date(classItem.startDate) > new Date();
-  await classRepository.update(classItem._id, {
-    status: stillUpcoming ? CLASS_STATUS.OPEN : CLASS_STATUS.EXPIRED,
-    completedByPoster: false,
-    completedByTutor: false,
-    completedAt: null,
+  await withTransaction(async (session) => {
+    const transitioned = await classApplicationRepository.transitionStatus(
+      applicationId,
+      CLASS_APPLICATION_STATUS.CANCEL_REQUESTED,
+      { status: CLASS_APPLICATION_STATUS.CANCELLED },
+      { session },
+    );
+    if (!transitioned) {
+      throw new AppError(MESSAGE.CLASS_APPLICATION_CANCEL_NOT_REQUESTED, HTTP_STATUS.CONFLICT);
+    }
+
+    const reopened = await classRepository.transitionStatus(
+      classItem._id,
+      CLASS_STATUS.MATCHED,
+      {
+        status: stillUpcoming ? CLASS_STATUS.OPEN : CLASS_STATUS.EXPIRED,
+        completedByPoster: false,
+        completedByTutor: false,
+        completedAt: null,
+      },
+      { session },
+    );
+    if (!reopened) {
+      throw new AppError(MESSAGE.CLASS_COMPLETE_ONLY_MATCHED, HTTP_STATUS.CONFLICT);
+    }
+
+    await tutorRepository.decrementClassStats(tutor._id, { session });
+    await outboxService.enqueueNotification({
+      dedupeKey: `class-application:${applicationId}:cancellation-approved`,
+      userId: tutorUserId,
+      type: NOTIFICATION_TYPES.CLASS_APPLICATION_CANCEL_APPROVED,
+      message: `Yêu cầu hủy lớp ${classItem.classCode} (Môn: ${classItem.subject}) của bạn đã được duyệt.`,
+    }, { session });
   });
 
-  // Trừ lại thống kê đã cộng khi duyệt nhận lớp (clamp ≥ 0)
-  await tutorRepository.update(tutor._id, {
-    totalClassesAccepted: Math.max(0, (tutor.totalClassesAccepted || 0) - 1),
-    classesAcceptedThisMonth: Math.max(0, (tutor.classesAcceptedThisMonth || 0) - 1),
-  });
-
-  await notificationService.createNotification({
-    userId: tutorUserId,
-    type: NOTIFICATION_TYPES.CLASS_APPLICATION_CANCEL_APPROVED,
-    message: `Yêu cầu hủy lớp ${classItem.classCode} (Môn: ${classItem.subject}) của bạn đã được duyệt.`,
-  });
-
-  return ClassApplicationMapper.toDTO(updated);
+  return ClassApplicationMapper.toDTO(await classApplicationRepository.findById(applicationId));
 };
 
 // Từ chối yêu cầu huỷ đơn nhận lớp (giữ nguyên đơn, thông báo gia sư)
@@ -85,23 +99,31 @@ const rejectCancellation = async (applicationId, reason) => {
     throw new AppError(MESSAGE.CLASS_APPLICATION_CANCEL_NOT_REQUESTED, HTTP_STATUS.BAD_REQUEST);
   }
 
-  const updated = await classApplicationRepository.update(applicationId, {
-    status: CLASS_APPLICATION_STATUS.APPROVED,
-    cancellationReason: null,
-  });
-
   const tutor = application.tutorId;
   const tutorUserId = tutor.userId?._id ?? tutor.userId;
   const classItem = application.classId;
 
   const reasonText = reason ? ` Lý do: ${reason}` : "";
-  await notificationService.createNotification({
-    userId: tutorUserId,
-    type: NOTIFICATION_TYPES.CLASS_APPLICATION_CANCEL_REJECTED,
-    message: `Yêu cầu hủy lớp ${classItem.classCode} (Môn: ${classItem.subject}) đã bị từ chối, bạn vẫn nhận lớp này.${reasonText}`,
+  const transitionId = randomUUID();
+  await withTransaction(async (session) => {
+    const transitioned = await classApplicationRepository.transitionStatus(
+      applicationId,
+      CLASS_APPLICATION_STATUS.CANCEL_REQUESTED,
+      { status: CLASS_APPLICATION_STATUS.APPROVED, cancellationReason: null },
+      { session },
+    );
+    if (!transitioned) {
+      throw new AppError(MESSAGE.CLASS_APPLICATION_CANCEL_NOT_REQUESTED, HTTP_STATUS.CONFLICT);
+    }
+    await outboxService.enqueueNotification({
+      dedupeKey: `class-application:${applicationId}:cancellation-rejected:${transitionId}`,
+      userId: tutorUserId,
+      type: NOTIFICATION_TYPES.CLASS_APPLICATION_CANCEL_REJECTED,
+      message: `Yêu cầu hủy lớp ${classItem.classCode} (Môn: ${classItem.subject}) đã bị từ chối, bạn vẫn nhận lớp này.${reasonText}`,
+    }, { session });
   });
 
-  return ClassApplicationMapper.toDTO(updated);
+  return ClassApplicationMapper.toDTO(await classApplicationRepository.findById(applicationId));
 };
 
 module.exports = {

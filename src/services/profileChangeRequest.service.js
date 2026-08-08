@@ -157,11 +157,19 @@ const requestChange = async (userId, body = {}) => {
     throw new AppError(MESSAGE.PROFILE_CHANGE_ALREADY_PENDING, HTTP_STATUS.CONFLICT);
   }
 
-  const request = await profileChangeRequestRepository.create({
-    tutorId: tutor._id,
-    userId,
-    changes,
-  });
+  let request;
+  try {
+    request = await profileChangeRequestRepository.create({
+      tutorId: tutor._id,
+      userId,
+      changes,
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      throw new AppError(MESSAGE.PROFILE_CHANGE_ALREADY_PENDING, HTTP_STATUS.CONFLICT);
+    }
+    throw error;
+  }
 
   // Notify tất cả admin
   const admins = await userRepository.findAllByRole(ROLES.ADMIN);

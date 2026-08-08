@@ -61,6 +61,14 @@ const paymentSchema = new mongoose.Schema(
 );
 
 paymentSchema.index({ createdAt: -1 });
+paymentSchema.index(
+  { applicationId: 1 },
+  {
+    name: "uniq_pending_payment_per_application",
+    unique: true,
+    partialFilterExpression: { status: PAYMENT_STATUS.PENDING },
+  },
+);
 
 const Payment = mongoose.model("Payment", paymentSchema);
 

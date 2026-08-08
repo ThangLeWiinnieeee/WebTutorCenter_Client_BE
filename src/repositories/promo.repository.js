@@ -4,7 +4,10 @@ const Promo = require("../models/promo.model");
 const normalizeCode = (code) => String(code || "").toUpperCase().trim();
 
 // Tạo một mã giảm giá mới
-const create = (data) => Promo.create(data);
+const create = async (data, { session } = {}) => {
+  const [promo] = await Promo.create([data], { session });
+  return promo;
+};
 
 // Chỉ lấy mã chưa bị xóa mềm (dùng cho CRUD/áp dụng thông thường)
 const findById = (id) => Promo.findOne({ _id: id, deletedAt: null });
@@ -61,8 +64,26 @@ const deleteById = (id) => Promo.findOneAndDelete({ _id: id, deletedAt: { $ne: n
 const deleteByOwnerUserId = (ownerUserId) => Promo.deleteMany({ ownerUserId });
 
 // Tăng số lượt đã dùng của mã
-const incrementUsed = (id) =>
-  Promo.findByIdAndUpdate(id, { $inc: { usedCount: 1 } }, { new: true });
+const incrementUsed = (id, { session, expectedUpdatedAt } = {}) =>
+  Promo.findOneAndUpdate(
+    {
+      _id: id,
+      deletedAt: null,
+      isActive: true,
+      ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}),
+      $and: [
+        { $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
+      ],
+      $expr: {
+        $or: [
+          { $eq: ["$usageLimit", null] },
+          { $lt: [{ $ifNull: ["$usedCount", 0] }, "$usageLimit"] },
+        ],
+      },
+    },
+    { $inc: { usedCount: 1 } },
+    { new: true, session },
+  );
 
 // Voucher cá nhân của một user (kho mã), mới nhất trước
 const findByOwner = async (ownerUserId, { page = 1, limit = 10 }) => {

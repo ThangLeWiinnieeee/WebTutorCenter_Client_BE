@@ -15,7 +15,7 @@ const subjectService = require("./subject.service");
 const classPricingRepository = require("../repositories/class.pricing.repository");
 const promoService = require("./promo.service");
 const promoRepository = require("../repositories/promo.repository");
-const notificationService = require("./notification.service");
+const outboxService = require("./outbox.service");
 const { CLASS_STATUS } = require("../constants/class");
 const { NOTIFICATION_TYPES } = require("../constants/notification");
 const {
@@ -25,6 +25,7 @@ const {
 const { TUTOR_STATUS, SUBJECT_AFFINITY } = require("../constants/tutor");
 const { buildPagination } = require("../utils/pagination");
 const { generateUniqueCode } = require("../utils/code");
+const { withTransaction } = require("../utils/transaction");
 
 let cachedPricingConfig = null;
 let pricingConfigCachedAt = 0;
@@ -269,11 +270,16 @@ const createClass = async (payload, userId) => {
     throw new AppError(MESSAGE.SUBJECT_NOT_FOUND, HTTP_STATUS.UNPROCESSABLE_ENTITY);
   }
   const { data, promoDoc } = await buildClassData(payload, userId);
-  const created = await classRepository.create(data);
-  // Tăng số lượt đã dùng của mã sau khi tạo lớp thành công
-  if (promoDoc?._id) {
-    await promoRepository.incrementUsed(promoDoc._id);
-  }
+  const created = await withTransaction(async (session) => {
+    const classItem = await classRepository.create(data, { session });
+    if (promoDoc?._id && !(await promoRepository.incrementUsed(promoDoc._id, {
+      session,
+      expectedUpdatedAt: promoDoc.updatedAt,
+    }))) {
+      throw new AppError(MESSAGE.PROMO_USAGE_EXCEEDED, HTTP_STATUS.CONFLICT);
+    }
+    return classItem;
+  });
   return await maskClassItem(created, { id: userId });
 };
 
@@ -330,22 +336,30 @@ const createInvitedClass = async (payload, userId) => {
 
   const { data, promoDoc } = await buildClassData(classPayload, userId);
   data.requestedTutorId = tutor._id;
-  const created = await classRepository.create(data);
-  if (promoDoc?._id) {
-    await promoRepository.incrementUsed(promoDoc._id);
-  }
-
-  await classApplicationRepository.create({
-    classId: created._id,
-    tutorId: tutor._id,
-    origin: CLASS_APPLICATION_ORIGIN.INVITE,
-    status: CLASS_APPLICATION_STATUS.INVITED,
-  });
-
-  await notificationService.createNotification({
-    userId: tutorUserId,
-    type: NOTIFICATION_TYPES.CLASS_INVITE_RECEIVED,
-    message: `Có người yêu cầu bạn dạy lớp ${created.classCode} - Môn: ${created.subject}. Vào "Lời mời dạy lớp" để xem và phản hồi.`,
+  const created = await withTransaction(async (session) => {
+    const classItem = await classRepository.create(data, { session });
+    if (promoDoc?._id && !(await promoRepository.incrementUsed(promoDoc._id, {
+      session,
+      expectedUpdatedAt: promoDoc.updatedAt,
+    }))) {
+      throw new AppError(MESSAGE.PROMO_USAGE_EXCEEDED, HTTP_STATUS.CONFLICT);
+    }
+    const invitation = await classApplicationRepository.create(
+      {
+        classId: classItem._id,
+        tutorId: tutor._id,
+        origin: CLASS_APPLICATION_ORIGIN.INVITE,
+        status: CLASS_APPLICATION_STATUS.INVITED,
+      },
+      { session },
+    );
+    await outboxService.enqueueNotification({
+      dedupeKey: `class-invite:${invitation._id}:received`,
+      userId: tutorUserId,
+      type: NOTIFICATION_TYPES.CLASS_INVITE_RECEIVED,
+      message: `Có người yêu cầu bạn dạy lớp ${classItem.classCode} - Môn: ${classItem.subject}. Vào "Lời mời dạy lớp" để xem và phản hồi.`,
+    }, { session });
+    return classItem;
   });
 
   return await maskClassItem(created, { id: userId });
@@ -683,37 +697,50 @@ const confirmClassCompletion = async (userId, classId) => {
     throw new AppError(MESSAGE.CLASS_COMPLETE_FORBIDDEN, HTTP_STATUS.FORBIDDEN);
   }
 
-  const completedByPoster = Boolean(classItem.completedByPoster) || isPoster;
-  const completedByTutor = Boolean(classItem.completedByTutor) || isTutor;
-  const bothConfirmed = completedByPoster && completedByTutor;
+  await withTransaction(async (session) => {
+    const freshClass = await classRepository.findById(classId, { session });
+    if (!freshClass || freshClass.status !== CLASS_STATUS.MATCHED) {
+      throw new AppError(MESSAGE.CLASS_COMPLETE_ONLY_MATCHED, HTTP_STATUS.BAD_REQUEST);
+    }
 
-  const update = { completedByPoster, completedByTutor };
-  if (bothConfirmed) {
-    update.status = CLASS_STATUS.COMPLETED;
-    update.completedAt = new Date();
-  }
-  const updated = await classRepository.update(classId, update);
+    const freshApprovedApp = await classApplicationRepository.findApprovedByClassId(classId, { session });
+    const tutorUserId = freshApprovedApp?.tutorId?.userId?._id ?? freshApprovedApp?.tutorId?.userId;
+    const actorIsPoster = String(freshClass.createdBy) === String(userId);
+    const actorIsTutor = Boolean(freshApprovedApp) && String(tutorUserId) === String(userId);
+    if (!actorIsPoster && !actorIsTutor) {
+      throw new AppError(MESSAGE.CLASS_COMPLETE_FORBIDDEN, HTTP_STATUS.FORBIDDEN);
+    }
 
-  if (bothConfirmed) {
-    if (!approvedApp) approvedApp = await classApplicationRepository.findApprovedByClassId(classId);
-    const tutorUserId = approvedApp?.tutorId?.userId?._id ?? approvedApp?.tutorId?.userId;
-    const recipients = [classItem.createdBy, tutorUserId].filter(Boolean);
+    const field = actorIsPoster ? "completedByPoster" : "completedByTutor";
+    const afterConfirmation =
+      (await classRepository.confirmCompletionBy(classId, field, { session })) || freshClass;
+    if (!afterConfirmation.completedByPoster || !afterConfirmation.completedByTutor) return;
 
-    await Promise.all(
-      recipients.map(async (recipientId) => {
-        const voucher = await promoService.generateRewardVoucher(recipientId, {
-          classCode: classItem.classCode,
-        });
-        const expiry = new Date(voucher.expiresAt).toLocaleDateString("vi-VN");
-        return notificationService.createNotification({
-          userId: recipientId,
-          type: NOTIFICATION_TYPES.CLASS_COMPLETED_REWARD,
-          message: `Lớp ${classItem.classCode} (Môn: ${classItem.subject}) đã hoàn thành! Bạn nhận được mã giảm giá ${voucher.code} (giảm 10%, tối đa 200.000đ), hạn dùng đến ${expiry}. Xem trong "Kho mã giảm giá".`,
-        });
-      })
+    const completed = await classRepository.transitionStatus(
+      classId,
+      CLASS_STATUS.MATCHED,
+      { $set: { status: CLASS_STATUS.COMPLETED, completedAt: new Date() } },
+      { session },
     );
-  }
+    if (!completed) return;
 
+    const recipients = [freshClass.createdBy, tutorUserId].filter(Boolean);
+    for (const recipientId of recipients) {
+      const voucher = await promoService.generateRewardVoucher(recipientId, {
+        classCode: freshClass.classCode,
+        session,
+      });
+      const expiry = new Date(voucher.expiresAt).toLocaleDateString("vi-VN");
+      await outboxService.enqueueNotification({
+        dedupeKey: `class:${classId}:completed-reward:${recipientId}`,
+        userId: recipientId,
+        type: NOTIFICATION_TYPES.CLASS_COMPLETED_REWARD,
+        message: `Lớp ${freshClass.classCode} (Môn: ${freshClass.subject}) đã hoàn thành! Bạn nhận được mã giảm giá ${voucher.code} (giảm 10%, tối đa 200.000đ), hạn dùng đến ${expiry}. Xem trong "Kho mã giảm giá".`,
+      }, { session });
+    }
+  });
+
+  const updated = await classRepository.findById(classId);
   return maskClassItem(updated, { id: userId });
 };
 

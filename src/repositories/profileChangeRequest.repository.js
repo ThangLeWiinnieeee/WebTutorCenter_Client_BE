@@ -18,8 +18,9 @@ const findPendingByTutorId = async (tutorId) => {
 };
 
 // Lấy chi tiết một yêu cầu đổi hồ sơ theo id
-const findById = async (id) => {
+const findById = async (id, { session } = {}) => {
   return await ProfileChangeRequest.findById(id)
+    .session(session || null)
     .populate("userId", POPULATE_USER)
     .populate("tutorId");
 };
@@ -48,10 +49,18 @@ const countGrouped = async () => {
 };
 
 // Cập nhật một yêu cầu đổi hồ sơ
-const update = async (id, updateData) => {
-  return await ProfileChangeRequest.findByIdAndUpdate(id, updateData, { new: true })
+const update = async (id, updateData, { session } = {}) => {
+  return await ProfileChangeRequest.findByIdAndUpdate(id, updateData, { new: true, session })
     .populate("userId", POPULATE_USER)
     .populate("tutorId");
+};
+
+const transitionStatus = async (id, expectedStatus, updateData, { session } = {}) => {
+  return ProfileChangeRequest.findOneAndUpdate(
+    { _id: id, status: expectedStatus },
+    updateData,
+    { new: true, runValidators: true, session },
+  );
 };
 
 // Xóa toàn bộ yêu cầu đổi hồ sơ của một người dùng (xóa vĩnh viễn tài khoản)
@@ -66,5 +75,6 @@ module.exports = {
   findPage,
   countGrouped,
   update,
+  transitionStatus,
   deleteByUserId,
 };

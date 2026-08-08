@@ -6,8 +6,11 @@ const { NotificationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 
 // Tạo một thông báo mới cho người dùng (audience mặc định là CLIENT)
-const createNotification = async ({ userId, type, message, audience }) => {
-  const notification = await notificationRepository.create({ userId, type, message, audience });
+const createNotification = async ({ userId, type, message, audience, eventKey }, options = {}) => {
+  const notification = await notificationRepository.create(
+    { userId, type, message, audience, eventKey },
+    options,
+  );
   return NotificationMapper.toDTO(notification);
 };
 

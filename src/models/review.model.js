@@ -80,7 +80,14 @@ const reviewSchema = new mongoose.Schema(
 // Truy vấn danh sách đánh giá của một gia sư (sắp xếp mới nhất) thường lọc theo trạng thái xóa mềm
 reviewSchema.index({ tutorId: 1, deletedAt: 1, createdAt: -1 });
 // Tra cứu nhanh "lớp này người đăng đã đánh giá chưa"
-reviewSchema.index({ classId: 1, reviewerId: 1 });
+reviewSchema.index(
+  { classId: 1, reviewerId: 1 },
+  {
+    name: "uniq_active_review_per_class_reviewer",
+    unique: true,
+    partialFilterExpression: { deletedAt: null },
+  },
+);
 
 const Review = mongoose.model("Review", reviewSchema);
 

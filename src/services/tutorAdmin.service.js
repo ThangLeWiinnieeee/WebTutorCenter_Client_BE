@@ -2,7 +2,7 @@ const tutorRepository = require("../repositories/tutor.repository");
 const userRepository = require("../repositories/user.repository");
 const classApplicationRepository = require("../repositories/class.application.repository");
 const profileChangeRequestRepository = require("../repositories/profileChangeRequest.repository");
-const notificationService = require("./notification.service");
+const outboxService = require("./outbox.service");
 const { NOTIFICATION_TYPES } = require("../constants/notification");
 const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
@@ -11,6 +11,7 @@ const ROLES = require("../constants/role");
 const { TUTOR_STATUS } = require("../constants/tutor");
 const { TutorMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
+const { withTransaction } = require("../utils/transaction");
 
 // Lấy danh sách gia sư chờ duyệt (kèm ảnh giấy tờ để đối chiếu)
 const getPendingTutors = async (query = {}) => {
@@ -34,15 +35,25 @@ const approveTutor = async (tutorId) => {
   if (tutor.status !== TUTOR_STATUS.PENDING) {
     throw new AppError(MESSAGE.TUTOR_NOT_PENDING, HTTP_STATUS.BAD_REQUEST);
   }
-  const updated = await tutorRepository.update(tutorId, { status: TUTOR_STATUS.APPROVED });
   const userId = tutor.userId?._id ?? tutor.userId;
-  await userRepository.updateRole(userId, ROLES.TUTOR);
-  await notificationService.createNotification({
-    userId,
-    type: NOTIFICATION_TYPES.TUTOR_APPROVED,
-    message: MESSAGE.NOTIF_TUTOR_APPROVED,
+  await withTransaction(async (session) => {
+    const transitioned = await tutorRepository.transitionStatus(
+      tutorId,
+      TUTOR_STATUS.PENDING,
+      { status: TUTOR_STATUS.APPROVED },
+      { session },
+    );
+    if (!transitioned) throw new AppError(MESSAGE.TUTOR_NOT_PENDING, HTTP_STATUS.CONFLICT);
+    const updatedUser = await userRepository.updateRole(userId, ROLES.TUTOR, { session });
+    if (!updatedUser) throw new AppError(MESSAGE.USER_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
+    await outboxService.enqueueNotification({
+      dedupeKey: `tutor:${tutorId}:approved`,
+      userId,
+      type: NOTIFICATION_TYPES.TUTOR_APPROVED,
+      message: MESSAGE.NOTIF_TUTOR_APPROVED,
+    }, { session });
   });
-  return await TutorMapper.toDTO(updated, null);
+  return await TutorMapper.toDTO(await tutorRepository.findById(tutorId), null);
 };
 
 // Từ chối hồ sơ gia sư (kèm lý do + gửi thông báo)
@@ -52,14 +63,23 @@ const rejectTutor = async (tutorId, rejectionReason) => {
   if (tutor.status !== TUTOR_STATUS.PENDING) {
     throw new AppError(MESSAGE.TUTOR_NOT_PENDING, HTTP_STATUS.BAD_REQUEST);
   }
-  const updated = await tutorRepository.update(tutorId, { status: TUTOR_STATUS.REJECTED, rejectionReason });
   const userId = tutor.userId?._id ?? tutor.userId;
-  await notificationService.createNotification({
-    userId,
-    type: NOTIFICATION_TYPES.TUTOR_REJECTED,
-    message: `Hồ sơ gia sư của bạn đã bị từ chối. Lý do: ${rejectionReason}`,
+  await withTransaction(async (session) => {
+    const transitioned = await tutorRepository.transitionStatus(
+      tutorId,
+      TUTOR_STATUS.PENDING,
+      { status: TUTOR_STATUS.REJECTED, rejectionReason },
+      { session },
+    );
+    if (!transitioned) throw new AppError(MESSAGE.TUTOR_NOT_PENDING, HTTP_STATUS.CONFLICT);
+    await outboxService.enqueueNotification({
+      dedupeKey: `tutor:${tutorId}:rejected`,
+      userId,
+      type: NOTIFICATION_TYPES.TUTOR_REJECTED,
+      message: `Hồ sơ gia sư của bạn đã bị từ chối. Lý do: ${rejectionReason}`,
+    }, { session });
   });
-  return await TutorMapper.toDTO(updated, null);
+  return await TutorMapper.toDTO(await tutorRepository.findById(tutorId), null);
 };
 
 // Tổng hợp số liệu tổng quan cho dashboard admin (gia sư, đơn, yêu cầu chờ xử lý)
