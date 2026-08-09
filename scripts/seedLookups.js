@@ -1,8 +1,11 @@
+require("dotenv").config();
 const mongoose = require("mongoose");
 const Lookup = require("../src/models/lookup.model");
+const { assertSeedAllowed } = require("./_seedSafety");
 
 const seedLookups = async () => {
   try {
+    assertSeedAllowed("seedLookups");
     console.log("🌱 Seeding lookup data...");
 
     // Connect to MongoDB
@@ -11,10 +14,6 @@ const seedLookups = async () => {
       useUnifiedTopology: true,
     });
     console.log("✓ Connected to MongoDB");
-
-    // Delete existing lookups
-    await Lookup.deleteMany({});
-    console.log("✓ Cleared existing lookups");
 
     // Lookup data
     const lookups = [
@@ -75,8 +74,16 @@ const seedLookups = async () => {
       { type: "district", value: "Bình Thủy", label: "Bình Thủy", parentId: "Cần Thơ", order: 2 },
     ];
 
-    const created = await Lookup.insertMany(lookups);
-    console.log(`✓ Created ${created.length} lookups`);
+    const result = await Lookup.bulkWrite(
+      lookups.map((lookup) => ({
+        updateOne: {
+          filter: { type: lookup.type, value: lookup.value },
+          update: { $setOnInsert: { ...lookup, isActive: true } },
+          upsert: true,
+        },
+      })),
+    );
+    console.log(`✓ Created ${result.upsertedCount} missing lookups; preserved existing data`);
 
     await mongoose.disconnect();
     console.log("✅ Seeding complete!");

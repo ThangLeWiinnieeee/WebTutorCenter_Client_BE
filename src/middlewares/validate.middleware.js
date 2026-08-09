@@ -21,5 +21,7 @@ const validate = buildValidator("body", MESSAGE.VALIDATION_ERROR);
 const validateBody = validate;
 // Validate query string (bộ lọc/phân trang)
 const validateQuery = buildValidator("query", MESSAGE.QUERY_VALIDATION_ERROR);
+// Validate route params (id, code...).
+const validateParams = buildValidator("params", MESSAGE.VALIDATION_ERROR);
 
-module.exports = { validate, validateBody, validateQuery };
+module.exports = { validate, validateBody, validateQuery, validateParams };

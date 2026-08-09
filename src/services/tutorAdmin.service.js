@@ -15,8 +15,7 @@ const { withTransaction } = require("../utils/transaction");
 
 // Lấy danh sách gia sư chờ duyệt (kèm ảnh giấy tờ để đối chiếu)
 const getPendingTutors = async (query = {}) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const [tutors, totalItems] = await Promise.all([
     tutorRepository.findPendingPage({ page, limit }),
     tutorRepository.countByStatus(TUTOR_STATUS.PENDING),

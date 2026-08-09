@@ -18,6 +18,7 @@ const HTTP_STATUS = require("../constants/status");
 const { UserMapper, ClassMapper, PromoMapper, ReviewMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 const { deleteImagesFromCloudinary } = require("../utils/upload");
+const TRASH_TYPES = require("../constants/trash");
 
 // Xóa vĩnh viễn TẤT CẢ dữ liệu của một tài khoản khỏi DB + ảnh trên Cloudinary.
 // Chỉ chạy khi xóa vĩnh viễn (purge). Xóa mềm KHÔNG đụng tới để còn khôi phục/backup.
@@ -81,7 +82,7 @@ const purgeUserData = async (user) => {
 
 // Đăng ký xử lý cho từng loại dữ liệu có thể nằm trong thùng rác
 const TRASH_ENTITIES = {
-  users: {
+  [TRASH_TYPES.USERS]: {
     label: "Người dùng",
     list: async ({ page, limit }) => {
       const { users, totalItems } = await userRepository.findDeleted({ page, limit });
@@ -95,7 +96,7 @@ const TRASH_ENTITIES = {
       return purged;
     },
   },
-  classes: {
+  [TRASH_TYPES.CLASSES]: {
     label: "Bài đăng",
     list: async ({ page, limit }) => {
       const { classes, totalItems } = await classRepository.findDeleted({ page, limit });
@@ -109,7 +110,7 @@ const TRASH_ENTITIES = {
       return purged;
     },
   },
-  promos: {
+  [TRASH_TYPES.PROMOS]: {
     label: "Mã ưu đãi",
     list: async ({ page, limit }) => {
       const { items, totalItems } = await promoRepository.findDeleted({ page, limit });
@@ -118,7 +119,7 @@ const TRASH_ENTITIES = {
     restore: (id) => promoRepository.restore(id),
     purge: (id) => promoRepository.deleteById(id),
   },
-  reviews: {
+  [TRASH_TYPES.REVIEWS]: {
     label: "Đánh giá",
     list: async ({ page, limit }) => {
       const { items, totalItems } = await reviewRepository.findDeleted({ page, limit });
@@ -155,8 +156,7 @@ const getTrashEntity = (type) => {
 // Lấy danh sách mục trong thùng rác theo loại (phân trang)
 const getTrashItems = async (type, query = {}) => {
   const entity = getTrashEntity(type);
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const { items, totalItems } = await entity.list({ page, limit });
   return {
     type,

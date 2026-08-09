@@ -12,6 +12,8 @@ const ClassModel = require("../src/models/class.model");
 
 const classApplicationRepository = require("../src/repositories/class.application.repository");
 const classRepository = require("../src/repositories/class.repository");
+const subjectRepository = require("../src/repositories/subject.repository");
+const tutorRepository = require("../src/repositories/tutor.repository");
 const paymentRepository = require("../src/repositories/payment.repository");
 const outboxRepository = require("../src/repositories/outbox.repository");
 const outboxService = require("../src/services/outbox.service");
@@ -20,6 +22,7 @@ const {
   getClassApplicationEligibilityError,
 } = require("../src/services/class.application.service");
 const { withTransaction } = require("../src/utils/transaction");
+const subjectService = require("../src/services/subject.service");
 
 const findIndex = (schema, name) => schema.indexes().find(([, options]) => options.name === name);
 
@@ -196,5 +199,60 @@ test("transaction helper always closes its Mongo session", async () => {
     assert.equal(ended, true);
   } finally {
     mongoose.startSession = original;
+  }
+});
+
+test("đổi tên môn cập nhật subject, tutor và class trong cùng transaction", async () => {
+  const originals = {
+    startSession: mongoose.startSession,
+    findById: subjectRepository.findById,
+    existsByName: subjectRepository.existsByName,
+    updateById: subjectRepository.updateById,
+    renameTutorSubject: tutorRepository.renameSubject,
+    renameClassSubject: classRepository.renameSubject,
+  };
+  const session = { id: "subject-session" };
+  const calls = [];
+
+  mongoose.startSession = async () => ({
+    ...session,
+    withTransaction: async (callback) => callback(),
+    endSession: async () => {},
+  });
+  subjectRepository.findById = async (id, options) => {
+    assert.equal(options.session.id, session.id);
+    return { _id: id, name: "Toán", isActive: true, order: 1 };
+  };
+  subjectRepository.existsByName = async (name, id, options) => {
+    assert.equal(options.session.id, session.id);
+    return false;
+  };
+  subjectRepository.updateById = async (id, update, options) => {
+    assert.equal(options.session.id, session.id);
+    return { _id: id, name: update.name, isActive: true, order: 1 };
+  };
+  tutorRepository.renameSubject = async (oldName, newName, options) => {
+    calls.push(["tutor", oldName, newName, options.session.id]);
+  };
+  classRepository.renameSubject = async (oldName, newName, options) => {
+    calls.push(["class", oldName, newName, options.session.id]);
+  };
+
+  try {
+    const result = await subjectService.updateSubject("507f1f77bcf86cd799439011", {
+      name: "Toán học",
+    });
+    assert.equal(result.name, "Toán học");
+    assert.deepEqual(calls.sort(), [
+      ["class", "Toán", "Toán học", "subject-session"],
+      ["tutor", "Toán", "Toán học", "subject-session"],
+    ]);
+  } finally {
+    mongoose.startSession = originals.startSession;
+    subjectRepository.findById = originals.findById;
+    subjectRepository.existsByName = originals.existsByName;
+    subjectRepository.updateById = originals.updateById;
+    tutorRepository.renameSubject = originals.renameTutorSubject;
+    classRepository.renameSubject = originals.renameClassSubject;
   }
 });

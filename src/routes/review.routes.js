@@ -12,6 +12,7 @@ const {
   replyReviewSchema,
   listTutorReviewsQuerySchema,
 } = require("../validations/review.validation");
+const { validateObjectIdParams } = require("../validations/common.validation");
 
 // Người đăng bài tạo đánh giá gia sư (lớp đã hoàn thành) — service tự kiểm tra quyền
 router.post("/", authMiddleware, validate(createReviewSchema), reviewController.createReview);
@@ -21,6 +22,7 @@ router.post(
   "/:id/reply",
   authMiddleware,
   roleMiddleware(ROLES.TUTOR),
+  validateObjectIdParams("id"),
   validate(replyReviewSchema),
   reviewController.replyToReview
 );
@@ -28,6 +30,7 @@ router.post(
 // Danh sách đánh giá công khai của một gia sư (hiển thị ở trang chi tiết gia sư)
 router.get(
   "/tutor/:tutorId",
+  validateObjectIdParams("tutorId"),
   validateQuery(listTutorReviewsQuerySchema),
   reviewController.getTutorReviews
 );

@@ -52,7 +52,7 @@ const lookupRepository = {
 
   // Cập nhật một giá trị lookup theo id
   async updateById(id, data) {
-    return await Lookup.findByIdAndUpdate(id, data, { new: true });
+    return await Lookup.findByIdAndUpdate(id, data, { new: true, runValidators: true });
   },
 
   // Xoá một giá trị lookup theo id
@@ -70,23 +70,9 @@ const lookupRepository = {
     return await Lookup.countDocuments({ type });
   },
 
-  // Lấy toàn bộ dữ liệu lookup gom theo loại
-  async getAllGrouped() {
-    const lookups = await Lookup.find({ isActive: true }).sort({ type: 1, order: 1 });
-    
-    const grouped = {};
-    lookups.forEach((lookup) => {
-      if (!grouped[lookup.type]) {
-        grouped[lookup.type] = [];
-      }
-      grouped[lookup.type].push({
-        value: lookup.value,
-        label: lookup.label,
-        parentId: lookup.parentId,
-      });
-    });
-
-    return grouped;
+  // Lấy toàn bộ lookup đang bật; service chịu trách nhiệm nhóm thành DTO.
+  async findAllActive() {
+    return await Lookup.find({ isActive: true }).sort({ type: 1, order: 1 });
   },
 };
 

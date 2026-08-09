@@ -16,8 +16,7 @@ const { withTransaction } = require("../utils/transaction");
 
 // Lấy danh sách yêu cầu đổi hồ sơ kèm thống kê theo trạng thái
 const getProfileChangeRequests = async (query = {}) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const status = query.status && query.status !== "all" ? query.status : null;
 
   const [docs, grouped] = await Promise.all([

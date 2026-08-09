@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 // Lấy danh sách lớp học cho admin
 const getAdminClasses = async (req, res, next) => {
@@ -15,7 +14,7 @@ const getAdminClasses = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -29,7 +28,7 @@ const getAdminClassDetail = async (req, res, next) => {
       data: { classItem },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -43,7 +42,7 @@ const deleteAdminClass = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

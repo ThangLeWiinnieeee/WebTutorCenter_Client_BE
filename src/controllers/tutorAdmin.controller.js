@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 // Lấy số liệu thống kê tổng quan gia sư cho admin
 const getDashboardStats = async (req, res, next) => {
@@ -15,7 +14,7 @@ const getDashboardStats = async (req, res, next) => {
       data: { stats },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -29,7 +28,7 @@ const getPendingTutors = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -43,7 +42,7 @@ const approveTutor = async (req, res, next) => {
       data: { tutor },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -57,7 +56,7 @@ const rejectTutor = async (req, res, next) => {
       data: { tutor },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

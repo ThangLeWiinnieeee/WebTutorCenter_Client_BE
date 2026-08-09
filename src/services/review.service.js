@@ -1,4 +1,3 @@
-const mongoose = require("mongoose");
 const reviewRepository = require("../repositories/review.repository");
 const tutorRepository = require("../repositories/tutor.repository");
 const classRepository = require("../repositories/class.repository");
@@ -12,13 +11,6 @@ const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 const { buildPagination } = require("../utils/pagination");
 const { withTransaction } = require("../utils/transaction");
-
-// Kiểm tra id có phải ObjectId hợp lệ, không thì ném lỗi 404
-const assertValidObjectId = (id, message) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new AppError(message, HTTP_STATUS.NOT_FOUND);
-  }
-};
 
 // Tính lại điểm trung bình của gia sư từ các đánh giá còn hiệu lực và lưu vào hồ sơ
 const recomputeTutorRating = async (tutorId, { session } = {}) => {
@@ -34,8 +26,6 @@ const recomputeTutorRating = async (tutorId, { session } = {}) => {
 
 // Người đăng bài đánh giá gia sư của một lớp đã hoàn thành.
 const createReview = async (reviewerId, { classId, rating, comment }) => {
-  assertValidObjectId(classId, MESSAGE.CLASS_NOT_FOUND);
-
   const classItem = await classRepository.findById(classId);
   if (!classItem) throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
@@ -100,9 +90,7 @@ const createReview = async (reviewerId, { classId, rating, comment }) => {
 
 // Danh sách đánh giá công khai của một gia sư (trang chi tiết gia sư) — có phân trang.
 const getTutorReviews = async (tutorId, query = {}) => {
-  assertValidObjectId(tutorId, MESSAGE.TUTOR_NOT_FOUND);
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 5));
+  const { page = 1, limit = 5 } = query;
 
   const tutor = await tutorRepository.findById(tutorId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -121,8 +109,6 @@ const getTutorReviews = async (tutorId, query = {}) => {
 
 // Gia sư phản hồi một đánh giá của chính mình — chỉ được phản hồi MỘT lần.
 const replyToReview = async (tutorUserId, reviewId, comment) => {
-  assertValidObjectId(reviewId, MESSAGE.REVIEW_NOT_FOUND);
-
   // Người gọi phải có hồ sơ gia sư
   const tutor = await tutorRepository.findByUserId(tutorUserId);
   if (!tutor) throw new AppError(MESSAGE.REVIEW_REPLY_NOT_OWNER, HTTP_STATUS.FORBIDDEN);
@@ -142,7 +128,7 @@ const replyToReview = async (tutorUserId, reviewId, comment) => {
     throw new AppError(MESSAGE.REVIEW_REPLY_ALREADY_EXISTS, HTTP_STATUS.CONFLICT);
   }
 
-  const reply = { comment: comment.trim(), repliedAt: new Date() };
+  const reply = { comment, repliedAt: new Date() };
   await withTransaction(async (session) => {
     const updated = await reviewRepository.setReply(reviewId, reply, { session });
     if (!updated) {
@@ -166,9 +152,7 @@ const replyToReview = async (tutorUserId, reviewId, comment) => {
 
 // Danh sách gia sư (kèm số lượt + điểm đánh giá) để admin chọn xem đánh giá
 const getTutorsForAdmin = async (query = {}) => {
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
-  const keyword = query.keyword || "";
+  const { page = 1, limit = 10, keyword = "" } = query;
 
   const { items, totalItems } = await tutorRepository.findApprovedForReviewAdmin({ page, limit, keyword });
   const tutors = items.map((t) => ({
@@ -189,9 +173,7 @@ const getTutorsForAdmin = async (query = {}) => {
 
 // Tất cả đánh giá còn hiệu lực của một gia sư (admin xem) — có phân trang
 const getTutorReviewsForAdmin = async (tutorId, query = {}) => {
-  assertValidObjectId(tutorId, MESSAGE.TUTOR_NOT_FOUND);
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(query.limit) || 10));
+  const { page = 1, limit = 10 } = query;
 
   const tutor = await tutorRepository.findById(tutorId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
@@ -213,7 +195,6 @@ const getTutorReviewsForAdmin = async (tutorId, query = {}) => {
 
 // Admin xóa mềm một đánh giá (đưa vào thùng rác) + cập nhật lại điểm gia sư
 const softDeleteReview = async (reviewId, adminUserId) => {
-  assertValidObjectId(reviewId, MESSAGE.REVIEW_NOT_FOUND);
   await withTransaction(async (session) => {
     const deleted = await reviewRepository.softDelete(reviewId, adminUserId, { session });
     if (!deleted) throw new AppError(MESSAGE.REVIEW_NOT_FOUND, HTTP_STATUS.NOT_FOUND);

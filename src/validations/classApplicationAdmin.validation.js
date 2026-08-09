@@ -20,7 +20,12 @@ const adminListClassApplicationsQuerySchema = Joi.object({
   origin: Joi.string().valid("apply", "invite").optional(),
 });
 
+const classApplicationStatsQuerySchema = Joi.object({
+  origin: Joi.string().valid("apply", "invite").optional(),
+});
+
 module.exports = {
   rejectClassApplicationSchema,
   adminListClassApplicationsQuerySchema,
+  classApplicationStatsQuerySchema,
 };

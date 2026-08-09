@@ -5,6 +5,7 @@ const promoRepository = require("../repositories/promo.repository");
 const { PromoMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
 const { generateUniqueCode } = require("../utils/code");
+const { escapeRegExp } = require("../utils/search");
 
 // Chuẩn hoá mã giảm giá (viết hoa, bỏ khoảng trắng)
 const normalizeCode = (code) => String(code || "").toUpperCase().trim();
@@ -48,12 +49,13 @@ const createPromo = async (payload) => {
 
 // Lấy danh sách mã giảm giá toàn cục cho admin (lọc + phân trang)
 const listPromos = async (query = {}) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
 
   // Chỉ liệt kê mã toàn cục (ownerUserId null/thiếu) — ẩn voucher cá nhân khỏi trang admin
   const filter = { ownerUserId: null };
-  if (query.keyword) filter.code = { $regex: normalizeCode(query.keyword), $options: "i" };
+  if (query.keyword) {
+    filter.code = { $regex: escapeRegExp(normalizeCode(query.keyword)), $options: "i" };
+  }
   if (query.discountType) filter.discountType = query.discountType;
   if (query.isActive !== undefined) filter.isActive = query.isActive;
 
@@ -80,7 +82,9 @@ const updatePromo = async (id, payload) => {
     data.code = code;
   }
 
-  assertValidShape({ ...promo.toObject(), ...data });
+  const normalized = { ...promo.toObject(), ...data };
+  assertValidShape(normalized);
+  if (normalized.discountType === "fixed") data.maxDiscountAmount = null;
 
   const updated = await promoRepository.updateById(id, data);
   return PromoMapper.toDTO(updated);
@@ -205,8 +209,7 @@ const voucherStatus = (promo) => {
 
 // Lấy danh sách voucher cá nhân trong kho mã của người dùng
 const listMyVouchers = async (userId, query = {}) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const { items, totalItems } = await promoRepository.findByOwner(userId, { page, limit });
 
   return {

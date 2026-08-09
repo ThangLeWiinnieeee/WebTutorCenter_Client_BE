@@ -274,6 +274,10 @@ const MESSAGE = {
   LOOKUP_CREATE_SUCCESS: "Tạo lookup thành công",
   LOOKUP_UPDATE_SUCCESS: "Cập nhật lookup thành công",
   LOOKUP_DELETE_SUCCESS: "Xóa lookup thành công",
+  LOOKUP_CREATE_MANY_SUCCESS: "Tạo danh sách lookup thành công",
+  LOOKUP_DELETE_TYPE_SUCCESS: "Xóa nhóm lookup thành công",
+  LOOKUP_NOT_FOUND: "Không tìm thấy lookup",
+  LOOKUP_ALREADY_EXISTS: "Giá trị lookup đã tồn tại",
 
   // Notification
   NOTIFICATION_LIST_SUCCESS: "Lấy danh sách thông báo thành công",

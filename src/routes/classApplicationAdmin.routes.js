@@ -6,12 +6,23 @@ const classApplicationAdminController = require("../controllers/classApplication
 const {
   rejectClassApplicationSchema,
   adminListClassApplicationsQuerySchema,
+  classApplicationStatsQuerySchema,
 } = require("../validations/classApplicationAdmin.validation");
+const { validateObjectIdParams } = require("../validations/common.validation");
 
 // Duyệt đơn nhận lớp (/admin/class-applications)
-router.get("/stats", classApplicationAdminController.getClassApplicationStats);
+router.get(
+  "/stats",
+  validateQuery(classApplicationStatsQuerySchema),
+  classApplicationAdminController.getClassApplicationStats
+);
 router.get("/", validateQuery(adminListClassApplicationsQuerySchema), classApplicationAdminController.getClassApplications);
-router.patch("/:id/approve", classApplicationAdminController.approveClassApplication);
-router.patch("/:id/reject", validate(rejectClassApplicationSchema), classApplicationAdminController.rejectClassApplication);
+router.patch("/:id/approve", validateObjectIdParams("id"), classApplicationAdminController.approveClassApplication);
+router.patch(
+  "/:id/reject",
+  validateObjectIdParams("id"),
+  validate(rejectClassApplicationSchema),
+  classApplicationAdminController.rejectClassApplication
+);
 
 module.exports = router;

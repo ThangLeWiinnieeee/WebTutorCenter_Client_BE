@@ -1,11 +1,9 @@
 const userService = require("../services/user.service");
 const { successResponse } = require("../utils/response");
-const AppError = require("../utils/AppError");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 const { REFRESH_TOKEN_CLEAR_OPTIONS, readRefreshToken } = require("../utils/token");
 
-const handleError = require("../utils/handleError");
 
 // Lấy thông tin tài khoản của người dùng hiện tại
 const getUserInfo = async (req, res, next) => {
@@ -17,16 +15,13 @@ const getUserInfo = async (req, res, next) => {
       data: { user },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
 // Tải lên và cập nhật ảnh đại diện
 const uploadAvatar = async (req, res, next) => {
   try {
-    if (!req.file) {
-      throw new AppError(MESSAGE.UPLOAD_AVATAR_FAILED, HTTP_STATUS.BAD_REQUEST);
-    }
     const avatarUrl = req.file.path;
     const user = await userService.uploadAvatar(req.user.id, avatarUrl);
     return successResponse(res, {
@@ -35,7 +30,7 @@ const uploadAvatar = async (req, res, next) => {
       data: { user },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -49,7 +44,7 @@ const updateProfile = async (req, res, next) => {
       data: { user },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -66,7 +61,7 @@ const changePassword = async (req, res, next) => {
       message: MESSAGE.CHANGE_PASSWORD_SUCCESS,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -80,7 +75,7 @@ const getSessions = async (req, res, next) => {
       data: { sessions },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -93,7 +88,7 @@ const revokeSession = async (req, res, next) => {
       message: MESSAGE.SESSION_REVOKED,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -107,7 +102,7 @@ const revokeAllSessions = async (req, res, next) => {
       message: MESSAGE.SESSIONS_REVOKED,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

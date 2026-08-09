@@ -1,4 +1,5 @@
 const User = require("../models/user.model");
+const { diacriticInsensitiveRegex } = require("../utils/search");
 
 // Tìm người dùng theo email (tuỳ chọn lấy kèm mật khẩu)
 const findByEmail = async (email, includePassword = false) => {
@@ -149,6 +150,19 @@ const findAllByRole = async (role) => {
   return await User.find({ role, deletedAt: null, isActive: true }).lean();
 };
 
+// Tìm id người dùng theo tên/email để các service khác không phải truy cập model trực tiếp.
+const findIdsByKeywordExcludingRole = async (keyword, excludedRole) => {
+  const pattern = diacriticInsensitiveRegex(keyword);
+  const users = await User.find({
+    role: { $ne: excludedRole },
+    deletedAt: null,
+    $or: [{ fullName: pattern }, { email: pattern }],
+  })
+    .select("_id")
+    .lean();
+  return users.map((user) => user._id);
+};
+
 // ──────────────────────────── Thùng rác (soft-delete) ────────────────────────────
 
 // Lấy danh sách tài khoản trong thùng rác
@@ -197,6 +211,7 @@ module.exports = {
   updateByAdmin,
   softDeleteByAdmin,
   findAllByRole,
+  findIdsByKeywordExcludingRole,
   findDeleted,
   restore,
   hardDelete,

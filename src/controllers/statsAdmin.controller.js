@@ -2,7 +2,6 @@ const statsAdminService = require("../services/statsAdmin.service");
 const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
-const handleError = require("../utils/handleError");
 
 // Lấy số liệu thống kê tổng quan cho admin
 const getSummary = async (req, res, next) => {
@@ -14,7 +13,7 @@ const getSummary = async (req, res, next) => {
       data: { stats },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

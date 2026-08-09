@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 // Lấy danh sách yêu cầu huỷ đơn nhận lớp cho admin
 const getApplicationCancellations = async (req, res, next) => {
@@ -15,7 +14,7 @@ const getApplicationCancellations = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -29,7 +28,7 @@ const approveCancellation = async (req, res, next) => {
       data: { application },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -43,7 +42,7 @@ const rejectCancellation = async (req, res, next) => {
       data: { application },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

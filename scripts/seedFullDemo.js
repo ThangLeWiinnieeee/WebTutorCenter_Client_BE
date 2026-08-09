@@ -22,6 +22,7 @@
  *
  * Yêu cầu trước khi chạy:
  *   - File .env có MONGODB_URI
+ *   - ALLOW_DESTRUCTIVE_SEED=true và NODE_ENV khác production
  *   - Đã seed locations:  npm run seed:locations   (cần province/district)
  *   - (Tùy chọn) seed pricing: npm run seed:pricing — nếu thiếu, script tự tạo config mặc định.
  */
@@ -44,6 +45,8 @@ const Review = require("../src/models/review.model");
 const { Conversation } = require("../src/models/conversation.model");
 const { CHAT_ROLES } = require("../src/constants/chat");
 const { Message } = require("../src/models/message.model");
+const { Payment } = require("../src/models/payment.model");
+const ClassView = require("../src/models/class.view.model");
 
 const locationRepository = require("../src/repositories/location.repository");
 const classPricingRepository = require("../src/repositories/class.pricing.repository");
@@ -54,8 +57,11 @@ const ACCOUNT_TYPE = require("../src/constants/accountType");
 const OCCUPATION_STATUS = require("../src/constants/occupationStatus");
 const { TUTOR_STATUS, GENDER_OPTIONS, DAYS_OF_WEEK } = require("../src/constants/tutor");
 const SUBJECTS = require("./subjectsSeedData");
+const { assertSeedAllowed } = require("./_seedSafety");
 
 const DEFAULT_PASSWORD = "Password123";
+const DEMO_CLASS_CODE_START = 90000;
+const DEMO_CLASS_COUNT = 40;
 
 // Pricing config mặc định (đồng bộ với scripts/seedClassPricing.js) — dùng để self-heal nếu thiếu.
 const DEFAULT_PRICING = {
@@ -186,6 +192,46 @@ const connect = async () => {
   console.log("→ Đang kết nối MongoDB...");
   await mongoose.connect(uri);
   console.log("✓ Đã kết nối.");
+};
+
+// Chỉ dọn dữ liệu phụ thuộc của các tài khoản @webtutor.dev do chính script quản lý.
+const resetDemoData = async (demoUserIds) => {
+  const demoClassCodes = Array.from(
+    { length: DEMO_CLASS_COUNT },
+    (_, index) => String(DEMO_CLASS_CODE_START + index),
+  );
+  const conflictingClass = await Class.findOne({
+    classCode: { $in: demoClassCodes },
+    createdBy: { $nin: demoUserIds },
+  }, { classCode: 1 }).lean();
+  if (conflictingClass) {
+    throw new Error(
+      `Mã lớp demo ${conflictingClass.classCode} đang thuộc dữ liệu ngoài demo; dừng seed để không ghi đè.`,
+    );
+  }
+
+  const [classes, conversations] = await Promise.all([
+    Class.find({ createdBy: { $in: demoUserIds } }, { _id: 1 }).lean(),
+    Conversation.find({ tutorUserId: { $in: demoUserIds } }, { _id: 1 }).lean(),
+  ]);
+  const classIds = classes.map((item) => item._id);
+  const conversationIds = conversations.map((item) => item._id);
+
+  const [removedApps, removedReviews] = await Promise.all([
+    ClassApplication.deleteMany({ classId: { $in: classIds } }),
+    Review.deleteMany({ classId: { $in: classIds } }),
+    Payment.deleteMany({ classId: { $in: classIds } }),
+    ClassView.deleteMany({ classId: { $in: classIds } }),
+    Message.deleteMany({ conversationId: { $in: conversationIds } }),
+  ]);
+  const [removedClasses, removedConversations] = await Promise.all([
+    Class.deleteMany({ _id: { $in: classIds } }),
+    Conversation.deleteMany({ _id: { $in: conversationIds } }),
+  ]);
+
+  console.log(
+    `→ Reset demo: ${removedClasses.deletedCount} lớp, ${removedApps.deletedCount} đơn, ${removedReviews.deletedCount} đánh giá, ${removedConversations.deletedCount} hội thoại.`,
+  );
 };
 
 const loadAreas = async () => {
@@ -401,49 +447,49 @@ const seedPromos = async (usersByIdx, adminId) => {
 
   const globalPromos = [
     {
-      code: "WELCOME10", description: "Giảm 10% học phí tháng đầu (tối đa 100k)",
+      code: "DEMO_WELCOME10", description: "Giảm 10% học phí tháng đầu (tối đa 100k)",
       discountType: "percent", discountValue: 10, maxDiscountAmount: 100000,
       isActive: true, startsAt: daysAgo(30), expiresAt: daysFromNow(60),
       usageLimit: 1000, usedCount: 42,
     },
     {
-      code: "GIAM50K", description: "Giảm thẳng 50.000đ học phí tháng",
+      code: "DEMO_GIAM50K", description: "Giảm thẳng 50.000đ học phí tháng",
       discountType: "fixed", discountValue: 50000, maxDiscountAmount: null,
       isActive: true, startsAt: daysAgo(10), expiresAt: daysFromNow(90),
       usageLimit: null, usedCount: 7,
     },
     {
-      code: "SALE20", description: "Giảm 20% không giới hạn trần (sự kiện)",
+      code: "DEMO_SALE20", description: "Giảm 20% không giới hạn trần (sự kiện)",
       discountType: "percent", discountValue: 20, maxDiscountAmount: null,
       isActive: true, startsAt: daysAgo(2), expiresAt: daysFromNow(15),
       usageLimit: 200, usedCount: 5,
     },
     {
-      code: "SCHEDULED5", description: "Mã sắp có hiệu lực (chưa tới ngày bắt đầu)",
+      code: "DEMO_SCHEDULED5", description: "Mã sắp có hiệu lực (chưa tới ngày bắt đầu)",
       discountType: "percent", discountValue: 5, maxDiscountAmount: 80000,
       isActive: true, startsAt: daysFromNow(7), expiresAt: daysFromNow(37),
       usageLimit: 100, usedCount: 0,
     },
     {
-      code: "EXPIRED15", description: "Mã đã hết hạn",
+      code: "DEMO_EXPIRED15", description: "Mã đã hết hạn",
       discountType: "percent", discountValue: 15, maxDiscountAmount: 120000,
       isActive: true, startsAt: daysAgo(90), expiresAt: daysAgo(10),
       usageLimit: 500, usedCount: 230,
     },
     {
-      code: "INACTIVE30", description: "Mã đã bị ngừng áp dụng",
+      code: "DEMO_INACTIVE30", description: "Mã đã bị ngừng áp dụng",
       discountType: "percent", discountValue: 30, maxDiscountAmount: 150000,
       isActive: false, startsAt: daysAgo(20), expiresAt: daysFromNow(20),
       usageLimit: 100, usedCount: 12,
     },
     {
-      code: "SOLDOUT", description: "Mã đã hết lượt sử dụng",
+      code: "DEMO_SOLDOUT", description: "Mã đã hết lượt sử dụng",
       discountType: "fixed", discountValue: 30000, maxDiscountAmount: null,
       isActive: true, startsAt: daysAgo(15), expiresAt: daysFromNow(15),
       usageLimit: 50, usedCount: 50,
     },
     {
-      code: "TRASHED25", description: "Mã đã bị xóa mềm (nằm trong thùng rác)",
+      code: "DEMO_TRASHED25", description: "Mã đã bị xóa mềm (nằm trong thùng rác)",
       discountType: "percent", discountValue: 25, maxDiscountAmount: 100000,
       isActive: true, startsAt: daysAgo(5), expiresAt: daysFromNow(30),
       usageLimit: 100, usedCount: 3, deletedAt: daysAgo(3),
@@ -464,11 +510,11 @@ const seedPromos = async (usersByIdx, adminId) => {
 
   // Voucher cá nhân trong "kho mã" của một số user (quà hoàn thành lớp)
   const personalVouchers = [
-    { idx: 3, code: "RWPARENT1", status: "active", usedCount: 0, isActive: true, expiresAt: daysFromNow(45) },
-    { idx: 3, code: "RWPARENT2", status: "used", usedCount: 1, isActive: true, expiresAt: daysFromNow(45) },
-    { idx: 4, code: "RWPARENT3", status: "expired", usedCount: 0, isActive: true, expiresAt: daysAgo(2) },
-    { idx: 48, code: "RWTUTOR1", status: "active", usedCount: 0, isActive: true, expiresAt: daysFromNow(50) },
-    { idx: 49, code: "RWTUTOR2", status: "used", usedCount: 1, isActive: true, expiresAt: daysFromNow(50) },
+    { idx: 3, code: "DEMO_RWPARENT1", status: "active", usedCount: 0, isActive: true, expiresAt: daysFromNow(45) },
+    { idx: 3, code: "DEMO_RWPARENT2", status: "used", usedCount: 1, isActive: true, expiresAt: daysFromNow(45) },
+    { idx: 4, code: "DEMO_RWPARENT3", status: "expired", usedCount: 0, isActive: true, expiresAt: daysAgo(2) },
+    { idx: 48, code: "DEMO_RWTUTOR1", status: "active", usedCount: 0, isActive: true, expiresAt: daysFromNow(50) },
+    { idx: 49, code: "DEMO_RWTUTOR2", status: "used", usedCount: 1, isActive: true, expiresAt: daysFromNow(50) },
   ];
   for (const v of personalVouchers) {
     await Promo.findOneAndUpdate(
@@ -508,7 +554,7 @@ const seedClasses = async (usersByIdx, areas, cfg, promoByCode, approvedTutorIdx
   for (let i = 3; i <= 47; i += 1) if (usersByIdx[i].isActive) parentIdxs.push(i);
 
   const created = [];
-  let codeSeq = 90000;
+  let codeSeq = DEMO_CLASS_CODE_START;
 
   const makeClass = async ({ idx, status, posterIdx, subject, startDate, promoCode, completed }) => {
     const area = areas[idx % areas.length];
@@ -583,7 +629,7 @@ const seedClasses = async (usersByIdx, areas, cfg, promoByCode, approvedTutorIdx
     await makeClass({
       idx: n, status: CLASS_STATUS.OPEN, posterIdx: parentIdxs[n % parentIdxs.length],
       startDate: daysFromNow(randInt(3, 30)),
-      promoCode: k % 5 === 0 ? "WELCOME10" : k % 7 === 0 ? "GIAM50K" : null,
+      promoCode: k % 5 === 0 ? "DEMO_WELCOME10" : k % 7 === 0 ? "DEMO_GIAM50K" : null,
     });
     n += 1;
   }
@@ -704,8 +750,8 @@ const seedNotifications = async (usersByIdx, seededUserIds) => {
     { idx: 56, type: T.CLASS_APPLICATION_CANCELLED, msg: "Đơn nhận lớp 90024 đã bị hủy." },
     { idx: 3, type: T.CLASS_MATCHED, msg: "Bài đăng 90020 của bạn đã có gia sư nhận lớp." },
     { idx: 4, type: T.CLASS_EXPIRED, msg: "Bài đăng 90028 của bạn đã hết hạn do chưa có gia sư nhận." },
-    { idx: 3, type: T.CLASS_COMPLETED_REWARD, msg: 'Lớp 90033 đã hoàn thành! Bạn nhận được mã giảm giá RWPARENT1 (giảm 10%, tối đa 200.000đ). Xem trong "Kho mã giảm giá".' },
-    { idx: 48, type: T.CLASS_COMPLETED_REWARD, msg: 'Lớp 90033 đã hoàn thành! Bạn nhận được mã giảm giá RWTUTOR1 (giảm 10%, tối đa 200.000đ). Xem trong "Kho mã giảm giá".' },
+    { idx: 3, type: T.CLASS_COMPLETED_REWARD, msg: 'Lớp 90033 đã hoàn thành! Bạn nhận được mã giảm giá DEMO_RWPARENT1 (giảm 10%, tối đa 200.000đ). Xem trong "Kho mã giảm giá".' },
+    { idx: 48, type: T.CLASS_COMPLETED_REWARD, msg: 'Lớp 90033 đã hoàn thành! Bạn nhận được mã giảm giá DEMO_RWTUTOR1 (giảm 10%, tối đa 200.000đ). Xem trong "Kho mã giảm giá".' },
   ];
 
   const docs = samples.map((s, i) => {
@@ -906,21 +952,8 @@ const seedConversations = async (usersByIdx, adminId) => {
 // ──────────────────────────── Orchestrator ────────────────────────────
 
 const main = async () => {
+  assertSeedAllowed("seedFullDemo");
   await connect();
-
-  // Reset các collection lớp & đơn nhận lớp để tránh dữ liệu "mồ côi":
-  // class được seed lại sinh _id mới, nếu không xoá đơn cũ thì classId của đơn
-  // sẽ trỏ tới class không còn tồn tại (populate trả null → UI hiện trống).
-  const removedApps = await ClassApplication.deleteMany({});
-  const removedClasses = await Class.deleteMany({});
-  // Review tham chiếu classId → reset cùng lúc tránh "mồ côi". Chat là dữ liệu demo
-  // thuần → reset sạch để idempotent.
-  const removedReviews = await Review.deleteMany({});
-  await Conversation.deleteMany({});
-  await Message.deleteMany({});
-  console.log(
-    `→ Reset: đã xoá ${removedClasses.deletedCount} lớp, ${removedApps.deletedCount} đơn nhận lớp, ${removedReviews.deletedCount} đánh giá và toàn bộ hội thoại chat cũ trước khi seed.`,
-  );
 
   const areas = await loadAreas();
   console.log(`• Có ${areas.length} tỉnh/thành mẫu để gán khu vực.`);
@@ -933,6 +966,7 @@ const main = async () => {
   const usersByIdx = await seedUsers(userSeeds, hashed);
   const adminId = usersByIdx[0]._id;
   const seededUserIds = Object.values(usersByIdx).map((u) => u._id);
+  await resetDemoData(seededUserIds);
 
   // 2) Tutors
   const tutorByUserIdx = await seedTutors(usersByIdx, areas);

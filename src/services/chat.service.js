@@ -3,7 +3,6 @@ const messageRepository = require("../repositories/message.repository");
 const userRepository = require("../repositories/user.repository");
 const tutorRepository = require("../repositories/tutor.repository");
 const classRepository = require("../repositories/class.repository");
-const User = require("../models/user.model");
 const { CHAT_ROLES, CHAT_CARD_KINDS } = require("../constants/chat");
 const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
@@ -11,7 +10,6 @@ const MESSAGE = require("../constants/message");
 const ROLES = require("../constants/role");
 const { ConversationMapper, MessageMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
-const { diacriticInsensitiveRegex } = require("../utils/search");
 const { emitToUser, emitToAdmins } = require("../configs/socket");
 
 // Tên sự kiện realtime (đồng bộ với FE)
@@ -44,8 +42,7 @@ const buildPreview = (text, image) => text || (image ? "[Hình ảnh]" : "");
 // Lấy (hoặc tạo) cuộc trò chuyện của chính người dùng + một trang tin nhắn.
 const getTutorConversation = async (tutorUserId, query = {}) => {
   const conversation = await conversationRepository.findOrCreateByTutorUserId(tutorUserId);
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 30));
+  const { page = 1, limit = 30 } = query;
 
   const [docs, totalItems] = await Promise.all([
     messageRepository.findByConversationPage({ conversationId: conversation._id, page, limit }),
@@ -119,21 +116,13 @@ const getTutorUnreadCount = async (tutorUserId) => {
 // rồi lọc conversation. Bao gồm cả gia sư lẫn học viên.
 const buildAdminConversationFilter = async (keyword) => {
   if (!keyword || !keyword.trim()) return {};
-  const pattern = diacriticInsensitiveRegex(keyword);
-  const users = await User.find({
-    role: { $ne: ROLES.ADMIN },
-    deletedAt: null,
-    $or: [{ fullName: pattern }, { email: pattern }],
-  })
-    .select("_id")
-    .lean();
-  return { tutorUserId: { $in: users.map((u) => u._id) } };
+  const userIds = await userRepository.findIdsByKeywordExcludingRole(keyword, ROLES.ADMIN);
+  return { tutorUserId: { $in: userIds } };
 };
 
 // Lấy danh sách hội thoại cho admin (lọc theo tên/email + phân trang)
 const getAdminConversations = async (query = {}) => {
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 20));
+  const { page = 1, limit = 20 } = query;
   const filter = await buildAdminConversationFilter(query.keyword);
 
   const [{ items, totalItems }, totalUnread] = await Promise.all([
@@ -153,8 +142,7 @@ const getAdminConversationMessages = async (conversationId, query = {}) => {
   const conversation = await conversationRepository.findById(conversationId);
   if (!conversation) throw new AppError(MESSAGE.CHAT_CONVERSATION_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 30));
+  const { page = 1, limit = 30 } = query;
 
   const [docs, totalItems] = await Promise.all([
     messageRepository.findByConversationPage({ conversationId, page, limit }),

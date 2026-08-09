@@ -1,5 +1,6 @@
 const Joi = require("joi");
 const { GENDER_OPTIONS, TUTOR_LEVEL_OPTIONS, DAYS_OF_WEEK, PHONE_REGEX } = require("../constants/tutor");
+const { CLASS_APPLICATION_STATUS } = require("../constants/classApplication");
 const { validateBody, validateQuery } = require("../middlewares/validate.middleware");
 
 const availabilitySlotSchema = Joi.object({
@@ -72,6 +73,23 @@ const listClassQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(50).default(6),
 });
 
+const classFeedQuerySchema = Joi.object({
+  subject: Joi.string().trim().allow("").max(100).optional(),
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(50).default(10),
+});
+
+const paginationQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(50).default(10),
+});
+
+const applicationListQuerySchema = paginationQuerySchema.keys({
+  status: Joi.string()
+    .valid("all", ...Object.values(CLASS_APPLICATION_STATUS))
+    .optional(),
+});
+
 // Gia sư hủy đơn nhận lớp — bắt buộc nêu lý do
 const cancelApplicationSchema = Joi.object({
   reason: Joi.string().trim().min(5).max(500).required().messages({
@@ -98,6 +116,9 @@ module.exports = {
   createInviteSchema,
   updateClassSchema,
   listClassQuerySchema,
+  classFeedQuerySchema,
+  paginationQuerySchema,
+  applicationListQuerySchema,
   cancelApplicationSchema,
   declineInvitationSchema,
   validateBody,

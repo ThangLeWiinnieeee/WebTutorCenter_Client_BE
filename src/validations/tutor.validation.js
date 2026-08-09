@@ -1,11 +1,41 @@
 const Joi = require("joi");
 const {
   OCCUPATION_STATUS,
+  GENDER_OPTIONS,
   PHONE_REGEX,
   TIME_REGEX,
   DAYS_OF_WEEK,
 } = require("../constants/tutor");
-const { validate } = require("../middlewares/validate.middleware");
+const { validate, validateQuery } = require("../middlewares/validate.middleware");
+
+const activeTutorsQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(50).default(20),
+});
+
+const topTutorsQuerySchema = Joi.object({
+  limit: Joi.number().integer().min(1).max(50).default(10),
+});
+
+const newTutorsQuerySchema = Joi.object({
+  days: Joi.number().integer().min(1).max(365).default(7),
+  limit: Joi.number().integer().min(1).max(50).default(10),
+});
+
+const searchTutorsQuerySchema = Joi.object({
+  name: Joi.string().trim().allow("").max(100).optional(),
+  subject: Joi.string().trim().allow("").max(100).optional(),
+  occupationStatus: Joi.string()
+    .valid(...Object.values(OCCUPATION_STATUS))
+    .allow("")
+    .optional(),
+  gender: Joi.string().valid(...GENDER_OPTIONS).allow("").optional(),
+  yearOfBirth: Joi.number().integer().min(1900).max(new Date().getFullYear()).optional(),
+  province: Joi.number().integer().positive().optional(),
+  district: Joi.number().integer().positive().optional(),
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(50).default(20),
+});
 
 const availabilitySlotSchema = Joi.object({
   day: Joi.string()
@@ -300,4 +330,9 @@ module.exports = {
   rejectTutorSchema,
   profileChangeRequestSchema,
   validate,
+  validateQuery,
+  activeTutorsQuerySchema,
+  topTutorsQuerySchema,
+  newTutorsQuerySchema,
+  searchTutorsQuerySchema,
 };

@@ -1,6 +1,7 @@
 require("dotenv").config();
 const mongoose = require("mongoose");
 const Tutor = require("../src/models/tutor.model");
+const { assertSeedAllowed } = require("./_seedSafety");
 
 const connectDB = async () => {
   try {
@@ -16,17 +17,20 @@ const updateTutorFields = async () => {
   try {
     console.log("🔄 Bắt đầu cập nhật fields cho tutor...");
 
-    const result = await Tutor.updateMany(
-      {},
-      {
-        $set: {
-          totalClassesAccepted: 0,
-          classesAcceptedThisMonth: 0,
-        },
-      }
-    );
+    const [totalResult, monthlyResult] = await Promise.all([
+      Tutor.updateMany(
+        { totalClassesAccepted: { $exists: false } },
+        { $set: { totalClassesAccepted: 0 } },
+      ),
+      Tutor.updateMany(
+        { classesAcceptedThisMonth: { $exists: false } },
+        { $set: { classesAcceptedThisMonth: 0 } },
+      ),
+    ]);
 
-    console.log(`✓ Cập nhật ${result.modifiedCount} tutor documents`);
+    console.log(
+      `✓ Backfill totalClassesAccepted: ${totalResult.modifiedCount}, classesAcceptedThisMonth: ${monthlyResult.modifiedCount}`,
+    );
   } catch (error) {
     console.error("✗ Lỗi khi cập nhật:", error);
   } finally {
@@ -36,6 +40,7 @@ const updateTutorFields = async () => {
 };
 
 const main = async () => {
+  assertSeedAllowed("seedUpdateTutorFields");
   await connectDB();
   await updateTutorFields();
 };

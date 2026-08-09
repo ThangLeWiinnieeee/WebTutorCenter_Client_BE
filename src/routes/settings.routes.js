@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const settingsController = require("../controllers/settings.controller");
+const { updateFooterSchema, validateBody } = require("../validations/settings.validation");
 const authMiddleware = require("../middlewares/auth.middleware");
 const roleMiddleware = require("../middlewares/role.middleware");
 
@@ -8,6 +9,12 @@ const roleMiddleware = require("../middlewares/role.middleware");
 router.get("/footer", settingsController.getFooterSettings);
 
 // Admin-only endpoint to update footer
-router.put("/footer", authMiddleware, roleMiddleware("admin"), settingsController.updateFooterSettings);
+router.put(
+  "/footer",
+  authMiddleware,
+  roleMiddleware("admin"),
+  validateBody(updateFooterSchema),
+  settingsController.updateFooterSettings
+);
 
 module.exports = router;

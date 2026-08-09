@@ -14,8 +14,7 @@ const { withTransaction } = require("../utils/transaction");
 
 // Lấy danh sách đơn nhận lớp cho admin (lọc, phân trang, thống kê theo trạng thái)
 const getClassApplications = async (query = {}) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const status = query.status && query.status !== "all" ? query.status : null;
   // origin: "apply" (gia sư tự ứng tuyển) | "invite" (gia sư được mời). Mặc định: tất cả.
   const origin = query.origin === "apply" || query.origin === "invite" ? query.origin : null;
