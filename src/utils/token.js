@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const { createHmac, timingSafeEqual } = require("crypto");
+const { createHmac, randomUUID, timingSafeEqual } = require("crypto");
 const MESSAGE = require("../constants/message");
 
 // Pin thuật toán HS256 cho cả ký và xác thực. Khi verify, chỉ chấp nhận HS256 để chặn
@@ -25,6 +25,7 @@ const generateRefreshToken = (payload) => {
   return jwt.sign(payload, process.env.REFRESH_TOKEN_SECRET, {
     algorithm: JWT_ALG,
     expiresIn: `${REFRESH_TOKEN_TTL_DAYS}d`,
+    jwtid: randomUUID(),
   });
 };
 
@@ -73,15 +74,14 @@ const isResetTokenCurrent = (decoded, passwordHash) => {
 
 const isProduction = process.env.NODE_ENV === "production";
 
-// Khi FE (app.tenmien.com) và BE (api.tenmien.com) cùng domain cha, đặt
-// COOKIE_DOMAIN=".tenmien.com" để cookie chia sẻ giữa các subdomain (first-party).
-// Bỏ trống ở localhost để cookie mặc định host-only.
+// Production Vercel gọi REST qua /api reverse proxy nên nên để trống để cookie
+// host-only trên origin FE. Chỉ đặt COOKIE_DOMAIN khi chủ động cần chia sẻ subdomain.
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || undefined;
 
 const REFRESH_TOKEN_COOKIE_OPTIONS = {
   httpOnly: true,
-  // Cùng domain cha là same-site → "lax" đủ và an toàn hơn "none".
-  // Vẫn cần Secure vì chạy HTTPS. Dev (localhost) giữ "strict".
+  // Vercel /api proxy khiến auth là first-party → "lax" đủ và an toàn hơn "none".
+  // Vẫn cần Secure vì production chạy HTTPS. Dev localhost giữ "strict".
   secure: isProduction,
   sameSite: isProduction ? "lax" : "strict",
   domain: COOKIE_DOMAIN,
