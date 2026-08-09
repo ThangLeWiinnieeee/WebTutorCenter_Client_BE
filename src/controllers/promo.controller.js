@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 // ──────────────────────────── Admin ────────────────────────────
 
@@ -17,7 +16,7 @@ const createPromo = async (req, res, next) => {
       data: { promo },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -31,7 +30,7 @@ const listPromos = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -45,7 +44,7 @@ const updatePromo = async (req, res, next) => {
       data: { promo },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -59,7 +58,7 @@ const deletePromo = async (req, res, next) => {
       data: { promo },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -75,7 +74,7 @@ const validatePromo = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -89,7 +88,7 @@ const getMyVouchers = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

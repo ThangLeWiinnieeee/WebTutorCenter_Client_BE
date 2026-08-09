@@ -338,6 +338,14 @@ const deleteByUserId = async (userId) => {
   return await Tutor.findOneAndDelete({ userId });
 };
 
+const renameSubject = async (oldName, newName, { session } = {}) => {
+  return Tutor.updateMany(
+    { subjects: oldName },
+    { $set: { "subjects.$[subject]": newName } },
+    { arrayFilters: [{ subject: oldName }], session },
+  );
+};
+
 // Số gia sư MỚI (hồ sơ tạo) theo ngày kể từ `since` — cho biểu đồ thống kê.
 const aggregateCountByDay = async (since) => {
   return await Tutor.aggregate([
@@ -373,4 +381,5 @@ module.exports = {
   decayAffinityMap,
   nextAffinityEntry,
   deleteByUserId,
+  renameSubject,
 };

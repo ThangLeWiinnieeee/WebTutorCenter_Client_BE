@@ -7,10 +7,16 @@ const {
   adminListProfileChangesQuerySchema,
   rejectProfileChangeSchema,
 } = require("../validations/profileChangeAdmin.validation");
+const { validateObjectIdParams } = require("../validations/common.validation");
 
 // Gia sư đổi hồ sơ (/admin/profile-changes)
 router.get("/", validateQuery(adminListProfileChangesQuerySchema), profileChangeAdminController.getProfileChanges);
-router.patch("/:id/approve", profileChangeAdminController.approveProfileChange);
-router.patch("/:id/reject", validate(rejectProfileChangeSchema), profileChangeAdminController.rejectProfileChange);
+router.patch("/:id/approve", validateObjectIdParams("id"), profileChangeAdminController.approveProfileChange);
+router.patch(
+  "/:id/reject",
+  validateObjectIdParams("id"),
+  validate(rejectProfileChangeSchema),
+  profileChangeAdminController.rejectProfileChange
+);
 
 module.exports = router;

@@ -224,8 +224,7 @@ const getMyApplications = async (userId, query = {}) => {
   const tutor = await tutorRepository.findByUserId(userId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const status = query.status && query.status !== "all" ? query.status : null;
 
   const [docs, grouped] = await Promise.all([
@@ -344,8 +343,7 @@ const getMyInvitations = async (userId, query = {}) => {
   const tutor = await tutorRepository.findByUserId(userId);
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const status = query.status && query.status !== "all" ? query.status : CLASS_APPLICATION_STATUS.INVITED;
 
   const { docs, totalItems } = await classApplicationRepository.findInvitationsByTutor(tutor._id, {

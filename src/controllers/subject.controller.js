@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 
-const handleError = require("../utils/handleError");
 
 // Public: danh sách tên môn đang bật (cho các form chọn môn).
 const getActiveSubjects = async (req, res, next) => {
@@ -15,7 +14,7 @@ const getActiveSubjects = async (req, res, next) => {
       data: { subjects },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -29,7 +28,7 @@ const getAdminSubjects = async (req, res, next) => {
       data: { subjects },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -43,7 +42,7 @@ const createSubject = async (req, res, next) => {
       data: { subject },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -57,7 +56,7 @@ const updateSubject = async (req, res, next) => {
       data: { subject },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

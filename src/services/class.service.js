@@ -383,8 +383,7 @@ const getClasses = async (query, user) => {
   if (query.provinceCode) filters.provinceCode = query.provinceCode;
   if (query.districtCode) filters.districtCode = query.districtCode;
 
-  const page = query.page || 1;
-  const limit = query.limit || 6;
+  const { page = 1, limit = 6 } = query;
   // Ẩn các lớp đã "khóa" (đơn selected/approved/cancel_requested — người đăng đã chọn gia sư,
   // đã ghép, hoặc đang xin hủy) khỏi danh sách công khai, đồng bộ với feed "Lớp mới theo môn".
   // Lưu ý: đơn pending (mới ứng tuyển, chưa được chọn) KHÔNG khóa — lớp vẫn hiển thị để nhận thêm.
@@ -436,8 +435,7 @@ const getClassFeedForTutor = async (userId, query = {}) => {
   if (!tutor) throw new AppError(MESSAGE.TUTOR_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
 
   const subjects = Array.isArray(tutor.subjects) ? tutor.subjects : [];
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
 
   const { genderPrefs, levelPrefs, provinceCode, gender, level } = buildTutorFeedCriteria(tutor, user);
 
@@ -505,8 +503,7 @@ const getClassFeedForTutor = async (userId, query = {}) => {
 
 // Lấy danh sách bài đăng của người dùng kèm trạng thái đơn và gia sư đã ghép
 const getMyPostedClasses = async (userId, query = {}) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const { classes, totalItems } = await classRepository.findByCreatedBy(userId, { page, limit });
 
   // Đánh dấu bài đăng đã có đơn đang hoạt động (gồm cả ứng viên đang chờ) → FE ẩn nút sửa/xóa

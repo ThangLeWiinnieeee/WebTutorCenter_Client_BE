@@ -1,7 +1,5 @@
-const mongoose = require("mongoose");
 const classService = require("../services/class.service");
 const { successResponse } = require("../utils/response");
-const AppError = require("../utils/AppError");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
@@ -88,11 +86,7 @@ const getMyPosts = async (req, res, next) => {
 // Lấy chi tiết một lớp
 const getClassDetail = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-    }
-    const classItem = await classService.getClassById(id, req.user);
+    const classItem = await classService.getClassById(req.params.id, req.user);
     return successResponse(res, {
       message: MESSAGE.DETAIL_SUCCESS,
       data: { classItem },
@@ -105,11 +99,7 @@ const getClassDetail = async (req, res, next) => {
 // Cập nhật bài đăng lớp của người đăng
 const updateClass = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-    }
-    const classItem = await classService.updatePostedClass(id, req.user.id, req.body);
+    const classItem = await classService.updatePostedClass(req.params.id, req.user.id, req.body);
     return successResponse(res, {
       message: MESSAGE.CLASS_UPDATE_SUCCESS,
       data: { classItem },
@@ -122,11 +112,7 @@ const updateClass = async (req, res, next) => {
 // Xoá bài đăng lớp của người đăng
 const deleteClass = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-    }
-    const result = await classService.deletePostedClass(id, req.user.id);
+    const result = await classService.deletePostedClass(req.params.id, req.user.id);
     return successResponse(res, {
       message: MESSAGE.CLASS_DELETE_SUCCESS,
       data: result,
@@ -139,11 +125,7 @@ const deleteClass = async (req, res, next) => {
 // Xác nhận hoàn thành lớp
 const completeClass = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new AppError(MESSAGE.CLASS_NOT_FOUND, HTTP_STATUS.NOT_FOUND);
-    }
-    const classItem = await classService.confirmClassCompletion(req.user.id, id);
+    const classItem = await classService.confirmClassCompletion(req.user.id, req.params.id);
     return successResponse(res, {
       message: MESSAGE.CLASS_COMPLETE_SUCCESS,
       data: { classItem },

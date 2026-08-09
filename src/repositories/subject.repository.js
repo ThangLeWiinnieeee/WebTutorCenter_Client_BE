@@ -5,39 +5,41 @@ const {
 } = require("../utils/search");
 
 // Lấy danh sách môn học (lọc theo trạng thái bật + từ khoá)
-const findAll = async ({ activeOnly = false, keyword = "" } = {}) => {
+const findAll = async ({ activeOnly = false, keyword = "" } = {}, { session } = {}) => {
   const filter = {};
   if (activeOnly) filter.isActive = true;
   // Tìm theo từ khóa: khớp không dấu + không phân biệt hoa/thường
   if (keyword) filter.name = { $regex: buildDiacriticInsensitivePattern(keyword), $options: "i" };
-  return await Subject.find(filter).sort({ order: 1, name: 1 });
+  return await Subject.find(filter).sort({ order: 1, name: 1 }).session(session || null);
 };
 
 // Tìm một môn học theo id
-const findById = async (id) => {
-  return await Subject.findById(id);
+const findById = async (id, { session } = {}) => {
+  return await Subject.findById(id).session(session || null);
 };
 
 // Kiểm tra tên môn đã tồn tại chưa (không phân biệt hoa/thường)
-const existsByName = async (name, exceptId = null) => {
+const existsByName = async (name, exceptId = null, { session } = {}) => {
   const filter = { name: { $regex: `^${escapeRegExp(String(name).trim())}$`, $options: "i" } };
   if (exceptId) filter._id = { $ne: exceptId };
-  return await Subject.exists(filter);
+  return await Subject.exists(filter).session(session || null);
 };
 
 // Tạo một môn học mới
-const create = async (data) => {
-  return await Subject.create(data);
+const create = async (data, { session } = {}) => {
+  if (!session) return await Subject.create(data);
+  const [subject] = await Subject.create([data], { session });
+  return subject;
 };
 
 // Cập nhật một môn học theo id
-const updateById = async (id, data) => {
-  return await Subject.findByIdAndUpdate(id, data, { new: true, runValidators: true });
+const updateById = async (id, data, { session } = {}) => {
+  return await Subject.findByIdAndUpdate(id, data, { new: true, runValidators: true, session });
 };
 
 // Lấy giá trị thứ tự lớn nhất hiện có
-const maxOrder = async () => {
-  const top = await Subject.findOne().sort({ order: -1 }).select("order");
+const maxOrder = async ({ session } = {}) => {
+  const top = await Subject.findOne().sort({ order: -1 }).select("order").session(session || null);
   return top?.order ?? 0;
 };
 

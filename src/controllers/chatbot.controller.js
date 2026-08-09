@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 // Nhận câu hỏi người dùng và trả lời qua chatbot
 const ask = async (req, res, next) => {
@@ -16,7 +15,7 @@ const ask = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

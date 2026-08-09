@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 const lookupController = {
   // Lấy danh sách giá trị lookup theo loại (public)
@@ -17,7 +16,7 @@ const lookupController = {
         data: { values },
       });
     } catch (error) {
-      handleError(error, res, next);
+      next(error);
     }
   },
 
@@ -32,7 +31,7 @@ const lookupController = {
         data: { districts },
       });
     } catch (error) {
-      handleError(error, res, next);
+      next(error);
     }
   },
 
@@ -46,7 +45,7 @@ const lookupController = {
         data,
       });
     } catch (error) {
-      handleError(error, res, next);
+      next(error);
     }
   },
 
@@ -60,7 +59,7 @@ const lookupController = {
         data: { lookup },
       });
     } catch (error) {
-      handleError(error, res, next);
+      next(error);
     }
   },
 
@@ -71,11 +70,11 @@ const lookupController = {
       const created = await lookupService.createManyLookups(lookups);
       return successResponse(res, {
         statusCode: HTTP_STATUS.CREATED,
-        message: `Tạo ${created.length} lookup thành công`,
+        message: MESSAGE.LOOKUP_CREATE_MANY_SUCCESS,
         data: { count: created.length },
       });
     } catch (error) {
-      handleError(error, res, next);
+      next(error);
     }
   },
 
@@ -90,7 +89,7 @@ const lookupController = {
         data: { lookup },
       });
     } catch (error) {
-      handleError(error, res, next);
+      next(error);
     }
   },
 
@@ -104,7 +103,7 @@ const lookupController = {
         message: MESSAGE.LOOKUP_DELETE_SUCCESS,
       });
     } catch (error) {
-      handleError(error, res, next);
+      next(error);
     }
   },
 
@@ -115,10 +114,10 @@ const lookupController = {
       await lookupService.deleteByType(type);
       return successResponse(res, {
         statusCode: HTTP_STATUS.OK,
-        message: `Xóa tất cả lookup type ${type} thành công`,
+        message: MESSAGE.LOOKUP_DELETE_TYPE_SUCCESS,
       });
     } catch (error) {
-      handleError(error, res, next);
+      next(error);
     }
   },
 };

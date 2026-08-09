@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 // Lấy danh sách người dùng cho admin
 const getAdminUsers = async (req, res, next) => {
@@ -15,7 +14,7 @@ const getAdminUsers = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -29,7 +28,7 @@ const updateAdminUser = async (req, res, next) => {
       data: { user },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -43,7 +42,7 @@ const updateAdminUserStatus = async (req, res, next) => {
       data: { user },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -57,7 +56,7 @@ const softDeleteAdminUser = async (req, res, next) => {
       data: { user },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

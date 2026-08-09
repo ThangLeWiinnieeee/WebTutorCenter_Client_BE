@@ -15,8 +15,7 @@ const { randomUUID } = require("node:crypto");
 
 // Lấy danh sách yêu cầu huỷ đơn nhận lớp kèm thống kê theo trạng thái
 const getApplicationCancellations = async (query = {}) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
+  const { page = 1, limit = 10 } = query;
   const status = query.status && query.status !== "all" ? query.status : null;
 
   const [docs, grouped] = await Promise.all([

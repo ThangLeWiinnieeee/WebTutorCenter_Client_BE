@@ -4,6 +4,15 @@ const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 const { NotificationMapper } = require("../mappers");
 const { buildPagination } = require("../utils/pagination");
+const ROLES = require("../constants/role");
+const { NOTIFICATION_AUDIENCE } = require("../constants/notification");
+
+const resolveAudience = (requestedAudience, role) => {
+  if (requestedAudience === NOTIFICATION_AUDIENCE.ADMIN && role === ROLES.ADMIN) {
+    return NOTIFICATION_AUDIENCE.ADMIN;
+  }
+  return NOTIFICATION_AUDIENCE.CLIENT;
+};
 
 // Tạo một thông báo mới cho người dùng (audience mặc định là CLIENT)
 const createNotification = async ({ userId, type, message, audience, eventKey }, options = {}) => {
@@ -16,9 +25,7 @@ const createNotification = async ({ userId, type, message, audience, eventKey },
 
 // Lấy danh sách thông báo của người dùng kèm phân trang và số chưa đọc
 const getUserNotifications = async (userId, query = {}) => {
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
-  const { audience } = query;
+  const { page = 1, limit = 10, audience } = query;
 
   const [docs, totalItems, unreadCount] = await Promise.all([
     notificationRepository.findByUserIdPage({ userId, page, limit, audience }),
@@ -48,6 +55,7 @@ const markAllAsRead = async (userId, audience) => {
 };
 
 module.exports = {
+  resolveAudience,
   createNotification,
   getUserNotifications,
   markAsRead,

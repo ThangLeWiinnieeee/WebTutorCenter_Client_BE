@@ -8,8 +8,7 @@ const {
 const MESSAGE = require("../constants/message");
 const HTTP_STATUS = require("../constants/status");
 const { LOGIN_FREE_ATTEMPTS } = require("../middlewares/rateLimit.middleware");
-
-const handleError = require("../utils/handleError");
+const { describeDevice } = require("../utils/device");
 
 // Đăng ký tài khoản mới và gửi OTP xác thực về email
 const register = async (req, res, next) => {
@@ -22,14 +21,17 @@ const register = async (req, res, next) => {
       data: { email },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
 // Xác thực OTP đăng ký và cấp token đăng nhập
 const verifyOtp = async (req, res, next) => {
   try {
-    const { accessToken, refreshToken, user } = await authService.verifyOtp(req.body, req);
+    const { accessToken, refreshToken, user } = await authService.verifyOtp(
+      req.body,
+      describeDevice(req)
+    );
 
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
@@ -37,7 +39,7 @@ const verifyOtp = async (req, res, next) => {
       data: { accessToken, user, ...sendRefreshToken(req, res, refreshToken) },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -52,14 +54,17 @@ const resendOtp = async (req, res, next) => {
       data: { email },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
 // Đăng nhập bằng tài khoản Google
 const googleLogin = async (req, res, next) => {
   try {
-    const { accessToken, refreshToken, user } = await authService.googleLogin(req.body, req);
+    const { accessToken, refreshToken, user } = await authService.googleLogin(
+      req.body,
+      describeDevice(req)
+    );
 
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
@@ -67,14 +72,17 @@ const googleLogin = async (req, res, next) => {
       data: { accessToken, user, ...sendRefreshToken(req, res, refreshToken) },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
 // Đăng nhập bằng email/mật khẩu
 const login = async (req, res, next) => {
   try {
-    const { accessToken, refreshToken, user } = await authService.login(req.body, req);
+    const { accessToken, refreshToken, user } = await authService.login(
+      req.body,
+      describeDevice(req)
+    );
 
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
@@ -92,7 +100,7 @@ const login = async (req, res, next) => {
     ) {
       error.message = `${MESSAGE.INVALID_CREDENTIALS}. Bạn còn ${rl.remaining} lần thử.`;
     }
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -109,7 +117,7 @@ const logout = async (req, res, next) => {
       message: MESSAGE.LOGOUT_SUCCESS,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -126,7 +134,7 @@ const refreshToken = async (req, res, next) => {
       data: { accessToken, ...sendRefreshToken(req, res, newRefreshToken) },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -141,7 +149,7 @@ const forgotPassword = async (req, res, next) => {
       data: { email },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -156,7 +164,7 @@ const verifyForgotPasswordOtp = async (req, res, next) => {
       data: { resetToken },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -170,7 +178,7 @@ const resetPassword = async (req, res, next) => {
       message: MESSAGE.RESET_PASSWORD_SUCCESS,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 // Gia sư ứng tuyển vào một lớp
 const applyForClass = async (req, res, next) => {
@@ -15,7 +14,7 @@ const applyForClass = async (req, res, next) => {
       data: { application },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -29,7 +28,7 @@ const getMyApplications = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -43,7 +42,7 @@ const getApplicants = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -61,7 +60,7 @@ const selectApplicant = async (req, res, next) => {
       data: { application },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -83,7 +82,7 @@ const cancelApplication = async (req, res, next) => {
       data: { application },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -99,7 +98,7 @@ const getMyInvitations = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -116,7 +115,7 @@ const acceptInvitation = async (req, res, next) => {
       data: { application },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -134,7 +133,7 @@ const declineInvitation = async (req, res, next) => {
       data: { application },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

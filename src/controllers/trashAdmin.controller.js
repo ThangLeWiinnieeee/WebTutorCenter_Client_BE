@@ -3,7 +3,6 @@ const { successResponse } = require("../utils/response");
 const HTTP_STATUS = require("../constants/status");
 const MESSAGE = require("../constants/message");
 
-const handleError = require("../utils/handleError");
 
 // Lấy danh sách mục trong thùng rác theo loại
 const getTrashItems = async (req, res, next) => {
@@ -15,7 +14,7 @@ const getTrashItems = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -29,7 +28,7 @@ const getTrashCounts = async (req, res, next) => {
       data: { counts },
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -43,7 +42,7 @@ const restoreTrashItem = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 
@@ -57,7 +56,7 @@ const purgeTrashItem = async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    handleError(error, res, next);
+    next(error);
   }
 };
 

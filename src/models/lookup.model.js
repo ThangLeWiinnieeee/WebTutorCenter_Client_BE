@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { LOOKUP_TYPES } = require("../constants/lookup");
 
 const lookupSchema = new mongoose.Schema(
   {
@@ -6,7 +7,7 @@ const lookupSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["subject", "occupation_status", "gender", "province", "district"],
+      enum: Object.values(LOOKUP_TYPES),
       index: true,
     },
     // Giá trị lookup

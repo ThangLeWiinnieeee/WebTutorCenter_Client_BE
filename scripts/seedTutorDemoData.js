@@ -5,6 +5,7 @@ const User = require("../src/models/user.model");
 const { TUTOR_STATUS, OCCUPATION_STATUS } = require("../src/constants/tutor");
 const ACCOUNT_TYPE = require("../src/constants/accountType");
 const { hashPassword } = require("../src/utils/hash");
+const { assertSeedAllowed } = require("./_seedSafety");
 
 const DEFAULT_PASSWORD = "Password123";
 
@@ -30,6 +31,7 @@ const toHourSlots = (slots = []) =>
 
 const seedTutorDemoData = async () => {
   try {
+    assertSeedAllowed("seedTutorDemoData");
     console.log("🌱 Seeding tutor demo data...");
 
     // Connect to MongoDB
@@ -42,7 +44,7 @@ const seedTutorDemoData = async () => {
     // Create demo users first
     const demoUsers = [
       {
-        email: "tutor1@example.com",
+        email: "tutor-demo-1@webtutor.dev",
         fullName: "Nguyễn Văn Hùng",
         password: "hashedPassword123",
         role: "tutor",
@@ -50,7 +52,7 @@ const seedTutorDemoData = async () => {
         avatar: "https://ui-avatars.com/api/?name=Ng+V+H&background=4A90E2",
       },
       {
-        email: "tutor2@example.com",
+        email: "tutor-demo-2@webtutor.dev",
         fullName: "Trần Thị Mai",
         password: "hashedPassword123",
         role: "tutor",
@@ -58,7 +60,7 @@ const seedTutorDemoData = async () => {
         avatar: "https://ui-avatars.com/api/?name=T+T+M&background=F5A623",
       },
       {
-        email: "tutor3@example.com",
+        email: "tutor-demo-3@webtutor.dev",
         fullName: "Phạm Minh Quân",
         password: "hashedPassword123",
         role: "tutor",
@@ -66,7 +68,7 @@ const seedTutorDemoData = async () => {
         avatar: "https://ui-avatars.com/api/?name=P+M+Q&background=7ED321",
       },
       {
-        email: "tutor4@example.com",
+        email: "tutor-demo-4@webtutor.dev",
         fullName: "Lê Hương Giang",
         password: "hashedPassword123",
         role: "tutor",
@@ -74,7 +76,7 @@ const seedTutorDemoData = async () => {
         avatar: "https://ui-avatars.com/api/?name=L+H+G&background=BD10E0",
       },
       {
-        email: "tutor5@example.com",
+        email: "tutor-demo-5@webtutor.dev",
         fullName: "Hoàng Anh Tuấn",
         password: "hashedPassword123",
         role: "tutor",
@@ -82,10 +84,6 @@ const seedTutorDemoData = async () => {
         avatar: "https://ui-avatars.com/api/?name=H+A+T&background=FF6B6B",
       },
     ];
-
-    // Clear existing tutor data
-    await Tutor.deleteMany({});
-    console.log("✓ Cleared existing tutors");
 
     // Create users (idempotent, mật khẩu băm đúng chuẩn để đăng nhập được)
     const hashed = await hashPassword(DEFAULT_PASSWORD);
@@ -256,8 +254,15 @@ const seedTutorDemoData = async () => {
       ...buildTutorDocs(t.occupationStatus),
       availability: toHourSlots(t.availability),
     }));
-    const createdTutors = await Tutor.insertMany(normalizedTutors);
-    console.log(`✓ Created ${createdTutors.length} tutors`);
+    const createdTutors = [];
+    for (const tutor of normalizedTutors) {
+      createdTutors.push(await Tutor.findOneAndUpdate(
+        { userId: tutor.userId },
+        { $set: tutor },
+        { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+      ));
+    }
+    console.log(`✓ Created/updated ${createdTutors.length} demo tutors`);
 
     await mongoose.disconnect();
     console.log("✅ Tutor seeding complete!");

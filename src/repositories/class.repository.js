@@ -293,6 +293,10 @@ const deleteAllByCreatedBy = async (userId) => {
   return await ClassModel.deleteMany({ createdBy: userId });
 };
 
+const renameSubject = async (oldName, newName, { session } = {}) => {
+  return ClassModel.updateMany({ subject: oldName }, { $set: { subject: newName } }, { session });
+};
+
 // Số bài đăng (không tính đã xóa mềm) theo ngày kể từ `since` — cho biểu đồ thống kê.
 const aggregateCountByDay = async (since) => {
   return await ClassModel.aggregate([
@@ -334,4 +338,5 @@ module.exports = {
   hardDelete,
   findAllIdsByCreatedBy,
   deleteAllByCreatedBy,
+  renameSubject,
 };

@@ -351,4 +351,4 @@ Mỗi nhóm là một router con (`<chức năng>Admin.routes.js`) mount trong `
 - Không hardcode tỉnh/quận/môn; dùng `locations`/`lookup`/`subject`.
 - Quy tắc độ mạnh mật khẩu chỉ khai báo ở `constants/password.js`; validation import từ đó, không viết lại regex.
 - Rẽ nhánh web/mobile chỉ nằm trong `utils/token.js`; service và controller không tự đọc header `x-client-platform`.
-- **Ngoại lệ có chủ đích**: `settings` không có service (logic trong controller, thao tác model `Settings` key/value `Mixed`).
+- `settings` tuân theo controller → service → repository; dữ liệu footer/hợp đồng mẫu chỉ đọc từ model `Settings` (key/value `Mixed`), không tự tạo nội dung mặc định.
