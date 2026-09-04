@@ -17,5 +17,6 @@ test("đặt các header chống MIME-sniffing / clickjacking / rò rỉ referre
   assert.equal(headers["X-Content-Type-Options"], "nosniff");
   assert.equal(headers["X-Frame-Options"], "DENY");
   assert.equal(headers["Referrer-Policy"], "no-referrer");
+  assert.equal(headers["Cache-Control"], "private, no-store");
   assert.equal(nextCalled, true);
 });

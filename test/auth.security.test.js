@@ -4,7 +4,12 @@ const assert = require("node:assert/strict");
 process.env.REFRESH_TOKEN_SECRET ||= "test-refresh-secret-at-least-32-characters";
 
 const { generateOtp, hashOtp, matchesOtp } = require("../src/utils/otp");
-const { generateResetToken, verifyResetToken, isResetTokenCurrent } = require("../src/utils/token");
+const {
+  generateRefreshToken,
+  generateResetToken,
+  verifyResetToken,
+  isResetTokenCurrent,
+} = require("../src/utils/token");
 const { registerSchema } = require("../src/validations/auth.validation");
 const User = require("../src/models/user.model");
 const userRepository = require("../src/repositories/user.repository");
@@ -31,6 +36,14 @@ test("reset token hết hiệu lực ngay khi password hash đổi", () => {
 
   assert.strictEqual(isResetTokenCurrent(decoded, oldHash), true);
   assert.strictEqual(isResetTokenCurrent(decoded, "$2a$12$new-password-hash"), false);
+});
+
+test("mỗi refresh token có jti riêng để rotation không bị trùng trong cùng một giây", () => {
+  const payload = { id: "user-id", email: "user@example.com", role: "user" };
+  const first = generateRefreshToken(payload);
+  const second = generateRefreshToken(payload);
+
+  assert.notStrictEqual(first, second);
 });
 
 test("public registration loại bỏ role do client tự gửi", () => {

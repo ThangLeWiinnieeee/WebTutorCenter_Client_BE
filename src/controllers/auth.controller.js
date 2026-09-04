@@ -107,10 +107,12 @@ const login = async (req, res, next) => {
 // Đăng xuất và xoá refresh token
 const logout = async (req, res, next) => {
   try {
-    // Chỉ đóng phiên của thiết bị đang gọi — máy khác vẫn giữ đăng nhập.
-    await authService.logout(req.user.id, readRefreshToken(req));
-
+    const token = readRefreshToken(req);
+    // Xóa cookie phía trình duyệt ngay cả khi thao tác thu hồi session trong DB gặp lỗi.
     res.clearCookie("refreshToken", REFRESH_TOKEN_CLEAR_OPTIONS);
+
+    // Chỉ đóng phiên của thiết bị đang gọi — máy khác vẫn giữ đăng nhập.
+    await authService.logout(req.user.id, token);
 
     return successResponse(res, {
       statusCode: HTTP_STATUS.OK,
